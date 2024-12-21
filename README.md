@@ -26,7 +26,7 @@ cd <repo-name>
 uv venv
 source .venv/bin/activate  # On Unix/MacOS
 # or
-.venv\Scriptsctivate  # On Windows
+.venv\Scripts\activate  # On Windows
 ```
 
 4. Install dependencies:
@@ -42,8 +42,19 @@ python game.py
 ```
 
 Controls:
-- ESC: Quit the game
-- More controls coming soon...
+- LEFT/RIGHT Arrow Keys: Move Captain Destructor
+- UP Arrow: Jump
+- SPACE: Shoot projectiles
+- ESC: Quit game
+
+Features:
+- 3D graphics with OpenGL
+- Character movement and jumping
+- Projectile combat
+- Health bars
+- Score system
+- Sound effects
+- Explosion animations
 
 ## Project Structure
 
@@ -52,7 +63,17 @@ Controls:
 ├── .gitignore          # Git ignore file
 ├── README.md           # This file
 ├── requirements.txt    # Python dependencies
-└── game.py            # Main game file
+├── game.py            # Game launcher
+├── sounds/            # Sound effects directory
+│   ├── explosion.wav
+│   ├── hit.wav
+│   ├── jump.wav
+│   └── shoot.wav
+└── src/               # Source code
+    ├── __init__.py
+    ├── game.py        # Main game logic
+    ├── characters.py  # Character classes
+    └── sound_manager.py # Sound management
 ```
 
 ## Development
