@@ -1,6 +1,17 @@
 # Retro 3D Fighting Game
 
-A retro-style 3D fighting game built with Python, PyOpenGL, and Pygame.
+A retro-style 3D fighting game built with Python, PyOpenGL, and Pygame. Features two characters in a 3D arena with projectile combat and special effects.
+
+## Features
+
+- 3D graphics with OpenGL rendering
+- Real-time combat mechanics
+- Character movement and jumping physics
+- Projectile system with collision detection
+- Health bars and score tracking
+- Sound effects for actions
+- Explosion animations
+- 60 FPS smooth gameplay
 
 ## Setup
 
@@ -34,34 +45,29 @@ source .venv/bin/activate  # On Unix/MacOS
 uv pip install -r requirements.txt
 ```
 
-### Running the Game
+## Playing the Game
 
-To start the game:
+Start the game:
 ```bash
 python game.py
 ```
 
-Controls:
-- LEFT/RIGHT Arrow Keys: Move Captain Destructor
-- UP Arrow: Jump
-- SPACE: Shoot projectiles
-- ESC: Quit game
+### Controls
+- **LEFT/RIGHT Arrow Keys**: Move Captain Destructor
+- **UP Arrow**: Jump
+- **SPACE**: Shoot projectiles
+- **ESC**: Quit game
 
-Features:
-- 3D graphics with OpenGL
-- Character movement and jumping
-- Projectile combat
-- Health bars
-- Score system
-- Sound effects
-- Explosion animations
+### Characters
+- **Captain Destructor** (Blue) - Player character with ranged attacks
+- **Villain** (Red) - Enemy character with health tracking
 
 ## Project Structure
 
 ```
 .
 ├── .gitignore          # Git ignore file
-├── README.md           # This file
+├── README.md           # Documentation
 ├── requirements.txt    # Python dependencies
 ├── game.py            # Game launcher
 ├── sounds/            # Sound effects directory
@@ -76,20 +82,44 @@ Features:
     └── sound_manager.py # Sound management
 ```
 
+## Technical Details
+
+### Graphics
+- OpenGL for 3D rendering
+- Custom character models
+- Real-time lighting
+- 2D overlay for UI elements
+
+### Physics
+- Basic gravity simulation
+- Collision detection
+- Projectile trajectory calculation
+
+### Audio
+- Sound effects for actions:
+  - Jumping
+  - Shooting
+  - Hit detection
+  - Explosions
+
 ## Development
 
-Currently implemented:
-- Basic 3D environment setup
-- Ground plane and reference cube
-- Basic game loop structure
-
-Coming soon:
-- Character models
-- Fighting mechanics
-- AI opponent
-- Game states
-- UI elements
+### Current Features
+- 3D environment with ground plane
+- Character movement and jumping
+- Projectile combat system
+- Health tracking
+- Score system
 - Sound effects
+- Explosion animations
+
+### Planned Features
+- Additional character moves
+- Power-ups
+- Multiple levels
+- Menu system
+- High score tracking
+- More special effects
 
 ## Contributing
 
@@ -102,3 +132,9 @@ Coming soon:
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- PyGame community for the game development framework
+- OpenGL for 3D graphics capabilities
+- Python community for support and resources
