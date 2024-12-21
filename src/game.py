@@ -56,17 +56,19 @@ class FightingGame:
     def initialize_characters(self):
         self.player1 = Character(
             name="Captain Destructor", 
-            position=(-3, 0, 0),  # Left side
-            color=(0, 0, 1),      # Blue
+            position=(-3, 0, 0),
+            color=(0, 0, 1),
             strength=100,
-            pistols=2
+            pistols=2,
+            is_ai=False
         )
         self.player2 = Character(
             name="Villain",
-            position=(3, 0, 0),   # Right side
-            color=(1, 0, 0),      # Red
+            position=(3, 0, 0),
+            color=(1, 0, 0),
             strength=100,
-            pistols=0
+            pistols=2,  # Give the villain some pistols
+            is_ai=True  # Make the villain AI-controlled
         )
 
     def handle_events(self):
@@ -96,10 +98,26 @@ class FightingGame:
         self.player1.update()
         self.player2.update()
         
-        # Update all active projectiles
+        # Update all active projectiles and check collisions for both characters
         for projectile in self.all_projectiles:
             projectile.update()
-            if self.check_collision(projectile, self.player2):
+            
+            # Check collision with player1 (if projectile is from villain)
+            if projectile in self.player2.projectiles:
+                if self.check_collision(projectile, self.player1):
+                    print(f"{self.player1.name} was hit by a projectile!")
+                    self.player1.strength -= 10
+                    projectile.active = False
+                    self.sound_manager.play('hit')
+                    
+                    if self.player1.strength <= 0:
+                        print(f"{self.player1.name} has been defeated!")
+                        self.player1.start_explosion()
+                        self.sound_manager.play('explosion')
+                        self.running = False
+
+            # Check collision with player2 (if projectile is from player1)
+            elif self.check_collision(projectile, self.player2):
                 print(f"{self.player2.name} was hit by a projectile!")
                 self.player2.strength -= 10
                 projectile.active = False
@@ -112,17 +130,14 @@ class FightingGame:
                     self.sound_manager.play('explosion')
                     self.score += 50
 
-        # Add new projectiles from player1 to the main list
-        for projectile in self.player1.projectiles:
+        # Add new projectiles from both players to the main list
+        for projectile in self.player1.projectiles + self.player2.projectiles:
             self.all_projectiles.append(projectile)
         self.player1.projectiles.clear()
+        self.player2.projectiles.clear()
         
         # Remove inactive projectiles
         self.all_projectiles = [p for p in self.all_projectiles if p.active]
-        
-        # Check if explosion is finished to end game
-        if self.player2.strength <= 0 and not self.player2.is_exploding:
-            self.running = False
 
     def draw_score(self):
         glPushMatrix()

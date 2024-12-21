@@ -3,7 +3,7 @@ from OpenGL.GL import *
 from pygame.math import Vector3
 
 class Character:
-    def __init__(self, name, position=(0, 0, 0), color=(1, 1, 1), strength=100, pistols=0):
+    def __init__(self, name, position=(0, 0, 0), color=(1, 1, 1), strength=100, pistols=0, is_ai=False):
         self.name = name
         self.position = list(position)  # Changed to list for mutability
         self.color = color
@@ -22,6 +22,14 @@ class Character:
         self.explosion_time = 0
         self.explosion_duration = 60
         self.explosion_particles = []
+
+        self.is_ai = is_ai
+        self.ai_state = 'idle'
+        self.ai_timer = 0
+        self.ai_move_direction = 1
+        self.move_speed = 0.1
+        self.attack_cooldown = 0
+        self.attack_cooldown_max = 60  # frames (1 second at 60 FPS)
 
     def start_explosion(self):
         self.is_exploding = True
@@ -58,15 +66,62 @@ class Character:
     def update(self):
         if self.is_exploding:
             self.update_explosion()
-        
+            return
+
         # Apply gravity and update vertical position
         self.velocity.y -= self.gravity
-        self.position[1] = max(self.position[1] + self.velocity.y, 0)  # Don't go below ground
+        self.position[1] = max(self.position[1] + self.velocity.y, 0)
         
         # Check if landed
         if self.position[1] == 0 and self.velocity.y <= 0:
             self.velocity.y = 0
             self.is_jumping = False
+
+        # Update AI behavior if this is an AI character
+        if self.is_ai:
+            self.update_ai()
+
+        # Update attack cooldown
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= 1
+
+    def update_ai(self):
+        self.ai_timer += 1
+
+        # Change state every few seconds
+        if self.ai_timer % 120 == 0:  # Every 2 seconds
+            self.choose_ai_state()
+
+        # Execute current state
+        if self.ai_state == 'move':
+            # Move back and forth
+            new_pos = self.position[0] + (self.move_speed * self.ai_move_direction)
+            if abs(new_pos) < 8:  # Stay within bounds
+                self.position[0] = new_pos
+            else:
+                self.ai_move_direction *= -1  # Reverse direction
+
+        elif self.ai_state == 'attack':
+            # Attack if cooldown is ready
+            if self.attack_cooldown <= 0:
+                self.shoot()
+                self.attack_cooldown = self.attack_cooldown_max
+
+        elif self.ai_state == 'jump':
+            if not self.is_jumping:
+                self.jump()
+
+    def choose_ai_state(self):
+        # Randomly choose a new state with weighted probabilities
+        roll = np.random.random()
+        if roll < 0.4:  # 40% chance to move
+            self.ai_state = 'move'
+        elif roll < 0.7:  # 30% chance to attack
+            self.ai_state = 'attack'
+        elif roll < 0.8:  # 10% chance to jump
+            self.ai_state = 'jump'
+        else:  # 20% chance to idle
+            self.ai_state = 'idle'
 
     def jump(self):
         if not self.is_jumping:
