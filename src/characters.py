@@ -86,7 +86,7 @@ class Character:
             projectile = Projectile(
                 position=start_pos,
                 direction=direction,
-                speed=0.2
+                speed=0.1
             )
             self.projectiles.append(projectile)
 
@@ -143,13 +143,23 @@ class Character:
             glPopMatrix()
 
 class Projectile:
-    def __init__(self, position, direction, speed=0.2):
+    def __init__(self, position, direction, speed=0.1):
         self.position = list(position)
         self.direction = direction
         self.speed = speed
         self.active = True
+        # Enhance trail effect
+        self.trail = []
+        self.trail_length = 15
+        self.trail_fade = 0.8
 
     def update(self):
+        # Add current position to trail
+        self.trail.append(list(self.position))
+        # Keep trail at fixed length
+        if len(self.trail) > self.trail_length:
+            self.trail.pop(0)
+        
         # Update position based on direction and speed
         self.position[0] += self.direction[0] * self.speed
         self.position[1] += self.direction[1] * self.speed
@@ -164,34 +174,101 @@ class Projectile:
             return
             
         glPushMatrix()
+        
+        # Draw trail with enhanced effect
+        glBegin(GL_QUAD_STRIP)
+        for i, pos in enumerate(self.trail):
+            # Calculate fade based on position in trail
+            alpha = (i / len(self.trail)) * self.trail_fade
+            # Trail color: brighter orange/red gradient
+            glColor3f(1.0, alpha * 0.8, alpha * 0.2)
+            
+            # Create width for trail with pulsing effect
+            trail_width = 0.15 * alpha * (1 + 0.2 * np.sin(i * 0.5))
+            glVertex3f(pos[0], pos[1] + trail_width, pos[2])
+            glVertex3f(pos[0], pos[1] - trail_width, pos[2])
+        glEnd()
+        
+        # Draw missile body
         glTranslatef(*self.position)
         
-        # Draw projectile as a small yellow cube
-        glColor3f(1.0, 1.0, 0.0)  # Yellow color
+        # Rotate missile to face direction of travel
+        if self.direction[0] < 0:
+            glRotatef(180, 0, 1, 0)
         
-        # Make the projectile smaller than characters but still visible
-        size = 0.2
+        # Draw missile body (elongated shape)
+        glColor3f(0.8, 0.8, 0.8)  # Metallic gray
+        
+        # Main body (cylinder-like)
         glBegin(GL_QUADS)
-        # Front face
-        glVertex3f(-size, -size, size)
-        glVertex3f(size, -size, size)
-        glVertex3f(size, size, size)
-        glVertex3f(-size, size, size)
-        # Back face
-        glVertex3f(-size, -size, -size)
-        glVertex3f(-size, size, -size)
-        glVertex3f(size, size, -size)
-        glVertex3f(size, -size, -size)
-        # Top face
-        glVertex3f(-size, size, -size)
-        glVertex3f(-size, size, size)
-        glVertex3f(size, size, size)
-        glVertex3f(size, size, -size)
-        # Bottom face
-        glVertex3f(-size, -size, -size)
-        glVertex3f(size, -size, -size)
-        glVertex3f(size, -size, size)
-        glVertex3f(-size, -size, size)
+        size = 0.1
+        length = 0.4
+        
+        # Body
+        glVertex3f(-length, -size, size)
+        glVertex3f(length, -size, size)
+        glVertex3f(length, size, size)
+        glVertex3f(-length, size, size)
+        
+        glVertex3f(-length, -size, -size)
+        glVertex3f(-length, size, -size)
+        glVertex3f(length, size, -size)
+        glVertex3f(length, -size, -size)
+        
+        glVertex3f(-length, size, -size)
+        glVertex3f(-length, size, size)
+        glVertex3f(length, size, size)
+        glVertex3f(length, size, -size)
+        
+        glVertex3f(-length, -size, -size)
+        glVertex3f(length, -size, -size)
+        glVertex3f(length, -size, size)
+        glVertex3f(-length, -size, size)
+        glEnd()
+        
+        # Nose cone (red tip)
+        glColor3f(1.0, 0.0, 0.0)  # Red
+        glBegin(GL_TRIANGLES)
+        glVertex3f(length, 0, 0)  # Tip
+        glVertex3f(length-0.2, size, size)  # Base
+        glVertex3f(length-0.2, -size, size)
+        
+        glVertex3f(length, 0, 0)  # Tip
+        glVertex3f(length-0.2, -size, -size)
+        glVertex3f(length-0.2, size, -size)
+        
+        glVertex3f(length, 0, 0)  # Tip
+        glVertex3f(length-0.2, size, size)
+        glVertex3f(length-0.2, size, -size)
+        
+        glVertex3f(length, 0, 0)  # Tip
+        glVertex3f(length-0.2, -size, -size)
+        glVertex3f(length-0.2, -size, size)
+        glEnd()
+        
+        # Fins
+        glColor3f(0.7, 0.7, 0.7)  # Lighter gray
+        glBegin(GL_TRIANGLES)
+        fin_size = 0.2
+        
+        # Top fin
+        glVertex3f(-length, size, 0)
+        glVertex3f(-length+0.2, size+fin_size, 0)
+        glVertex3f(-length+0.4, size, 0)
+        
+        # Bottom fin
+        glVertex3f(-length, -size, 0)
+        glVertex3f(-length+0.2, -size-fin_size, 0)
+        glVertex3f(-length+0.4, -size, 0)
+        
+        # Side fins
+        glVertex3f(-length, 0, size)
+        glVertex3f(-length+0.2, 0, size+fin_size)
+        glVertex3f(-length+0.4, 0, size)
+        
+        glVertex3f(-length, 0, -size)
+        glVertex3f(-length+0.2, 0, -size-fin_size)
+        glVertex3f(-length+0.4, 0, -size)
         glEnd()
         
         glPopMatrix()

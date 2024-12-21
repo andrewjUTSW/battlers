@@ -96,7 +96,7 @@ class FightingGame:
         self.player1.update()
         self.player2.update()
         
-        # Update projectiles
+        # Update all active projectiles
         for projectile in self.all_projectiles:
             projectile.update()
             if self.check_collision(projectile, self.player2):
@@ -111,6 +111,11 @@ class FightingGame:
                     self.player2.start_explosion()
                     self.sound_manager.play('explosion')
                     self.score += 50
+
+        # Add new projectiles from player1 to the main list
+        for projectile in self.player1.projectiles:
+            self.all_projectiles.append(projectile)
+        self.player1.projectiles.clear()
         
         # Remove inactive projectiles
         self.all_projectiles = [p for p in self.all_projectiles if p.active]
@@ -173,15 +178,13 @@ class FightingGame:
         # Draw a reference cube
         self.draw_cube(0, 0, 0)
         
-        # Render characters
+        # Draw ground plane and characters
         self.player1.draw()
         self.player2.draw()
 
-        # Render projectiles
-        for projectile in self.player1.projectiles:
+        # Draw all active projectiles
+        for projectile in self.all_projectiles:
             projectile.draw()
-            self.all_projectiles.append(projectile)
-        self.player1.projectiles.clear()  # Clear after adding to the main list
 
         # Draw health bars and score
         self.draw_health_bars()
