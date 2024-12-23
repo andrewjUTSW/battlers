@@ -13,7 +13,9 @@ class SoundManager:
             'shoot': 'shoot.wav',
             'jump': 'jump.wav',
             'explosion': 'explosion.wav',
-            'hit': 'hit.wav'
+            'hit': 'hit.wav',
+            'punch': 'hit.wav',
+            'kick': 'hit.wav'
         }
         
         for name, file in sound_files.items():

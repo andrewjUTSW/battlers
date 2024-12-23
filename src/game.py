@@ -53,6 +53,9 @@ class FightingGame:
         # List to manage all projectiles in the game
         self.all_projectiles = []
 
+        # Melee combat range
+        self.melee_range = 1.5
+
     def initialize_characters(self):
         self.player1 = Character(
             name="Captain Destructor", 
@@ -90,6 +93,9 @@ class FightingGame:
         if keys[pygame.K_x]:  # X for kick
             if self.player1.kick():
                 self.sound_manager.play('kick')
+        if keys[pygame.K_SPACE]:  # Space for shoot
+            if self.player1.shoot():
+                self.sound_manager.play('shoot')
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -105,6 +111,9 @@ class FightingGame:
         # Update characters
         self.player1.update()
         self.player2.update()
+        
+        # Check melee combat
+        self.check_melee_combat()
         
         # Update all active projectiles and check collisions
         for projectile in self.all_projectiles:
@@ -294,3 +303,28 @@ class FightingGame:
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
         glPopMatrix()
+
+    def check_melee_combat(self):
+        # Check if characters are in melee range
+        distance = abs(self.player1.position[0] - self.player2.position[0])
+        
+        # Check player1's melee attacks
+        if distance < self.melee_range:
+            if self.player1.is_punching and self.player1.punch_frame == 5:  # Mid-punch
+                self.player2.strength -= 5
+                self.sound_manager.play('hit')
+                print(f"{self.player2.name} was punched!")
+                self.score += 5
+            
+            if self.player1.is_kicking and self.player1.kick_frame == 5:  # Mid-kick
+                self.player2.strength -= 8
+                self.sound_manager.play('hit')
+                print(f"{self.player2.name} was kicked!")
+                self.score += 8
+
+        # Check if villain is defeated
+        if self.player2.strength <= 0:
+            print(f"{self.player2.name} has been defeated!")
+            self.player2.start_explosion()
+            self.sound_manager.play('explosion')
+            self.score += 50

@@ -31,13 +31,15 @@ class Character:
         self.attack_cooldown = 0
         self.attack_cooldown_max = 60  # frames (1 second at 60 FPS)
 
-        # Melee combat properties
+        # Combat properties
         self.is_punching = False
         self.is_kicking = False
         self.punch_frame = 0
         self.kick_frame = 0
         self.melee_cooldown = 0
         self.melee_damage = 15
+        self.shoot_cooldown = 0
+        self.shoot_cooldown_max = 20  # Frames between shots
 
     def start_explosion(self):
         self.is_exploding = True
@@ -75,6 +77,26 @@ class Character:
         if self.is_exploding:
             self.update_explosion()
             return
+
+        # Update combat cooldowns
+        if self.melee_cooldown > 0:
+            self.melee_cooldown -= 1
+        if self.shoot_cooldown > 0:
+            self.shoot_cooldown -= 1
+
+        # Update punch animation
+        if self.is_punching:
+            self.punch_frame += 1
+            if self.punch_frame >= 10:
+                self.is_punching = False
+                self.punch_frame = 0
+
+        # Update kick animation
+        if self.is_kicking:
+            self.kick_frame += 1
+            if self.kick_frame >= 10:
+                self.is_kicking = False
+                self.kick_frame = 0
 
         # Apply gravity and update vertical position
         self.velocity.y -= self.gravity
@@ -161,11 +183,11 @@ class Character:
         return False
 
     def shoot(self):
-        if self.pistols > 0:
+        if self.shoot_cooldown <= 0 and self.pistols > 0:
             direction = (1.0 if self.position[0] < 0 else -1.0, 0, 0)
             start_pos = (
                 self.position[0] + direction[0],
-                self.position[1],
+                self.position[1] + 0.5,  # Adjust height to shoot from chest
                 self.position[2]
             )
             projectile = Projectile(
@@ -174,6 +196,9 @@ class Character:
                 speed=0.1
             )
             self.projectiles.append(projectile)
+            self.shoot_cooldown = self.shoot_cooldown_max
+            return True
+        return False
 
     def draw(self):
         if self.is_exploding:
@@ -275,7 +300,7 @@ class Character:
         glPopMatrix()
 
     def punch(self):
-        if self.melee_cooldown <= 0:
+        if self.melee_cooldown <= 0 and not self.is_punching:
             self.is_punching = True
             self.punch_frame = 0
             self.melee_cooldown = 20
@@ -283,7 +308,7 @@ class Character:
         return False
 
     def kick(self):
-        if self.melee_cooldown <= 0:
+        if self.melee_cooldown <= 0 and not self.is_kicking:
             self.is_kicking = True
             self.kick_frame = 0
             self.melee_cooldown = 30
