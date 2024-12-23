@@ -7,9 +7,19 @@ import google.generativeai as genai
 from PIL import Image
 import io
 import os
+from dotenv import load_dotenv
 
 from src.sound_manager import SoundManager
 from src.characters import Character, Projectile
+
+# Load environment variables at startup
+load_dotenv()
+
+api_key = os.getenv('GEMINI_API_KEY')
+print(f"Found API key: {'Yes' if api_key else 'No'}")
+# print(f"API key: {api_key}")
+if not api_key:
+    print("Warning: GEMINI_API_KEY not found in environment variables")
 
 class FightingGame:
     def __init__(self, width=800, height=600):
@@ -63,7 +73,8 @@ class FightingGame:
         # Initialize Gemini
         try:
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            self.gemini_model = genai.GenerativeModel('gemini-pro-vision')
+            self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            print("Gemini model initialized successfully with gemini-2.0-flash-exp")
         except Exception as e:
             print(f"Warning: Could not initialize Gemini: {e}")
             self.gemini_model = None
@@ -71,6 +82,11 @@ class FightingGame:
         # Add screenshot analysis cooldown
         self.last_analysis_time = 0
         self.analysis_cooldown = 5000  # 5 seconds between analyses
+
+        # Add analysis display variables
+        self.current_analysis = None
+        self.analysis_display_time = 0
+        self.analysis_display_duration = 5000  # Show for 5 seconds
 
     def initialize_characters(self):
         self.player1 = Character(
@@ -92,6 +108,23 @@ class FightingGame:
 
     def handle_events(self):
         keys = pygame.key.get_pressed()
+        
+        # Combine all event handling into one loop
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.running = False
+                elif event.key == pygame.K_TAB:
+                    print("Tab pressed - attempting analysis...")  # Debug print
+                    analysis = self.analyze_screenshot()
+                    if analysis:
+                        print("\nGemini Analysis:", analysis)
+                        self.current_analysis = analysis
+                        self.analysis_display_time = pygame.time.get_ticks()
+                    else:
+                        print("No analysis returned")  # Debug print
         
         # Player 1 controls
         if keys[pygame.K_LEFT]:
@@ -134,22 +167,6 @@ class FightingGame:
         if keys[pygame.K_f]:  # F for fire breath
             if self.player2.breathe_fire():
                 self.sound_manager.play('fire')
-        
-        # Event handling for window close and escape
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    self.running = False
-
-        # Add screenshot analysis hotkey (Tab key)
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_TAB:
-                    analysis = self.analyze_screenshot()
-                    if analysis:
-                        print("\nGemini Analysis:", analysis)
 
     def update(self):
         # Check if either character is already defeated
@@ -327,6 +344,11 @@ class FightingGame:
         self.draw_health_bars()
         self.draw_score()
         
+        # Draw Gemini analysis if active
+        current_time = pygame.time.get_ticks()
+        if self.current_analysis and current_time - self.analysis_display_time < self.analysis_display_duration:
+            self.draw_analysis()
+        
         pygame.display.flip() 
 
     def run(self):
@@ -444,26 +466,108 @@ class FightingGame:
 
     def analyze_screenshot(self):
         if not self.gemini_model:
+            print("Gemini model not initialized")
             return "Gemini API not configured"
             
         current_time = pygame.time.get_ticks()
         if current_time - self.last_analysis_time < self.analysis_cooldown:
+            print("Analysis on cooldown")
             return None
             
         try:
-            # Capture current frame
-            buffer = pygame.image.tostring(pygame.display.get_surface(), 'RGB')
-            image = Image.frombytes('RGB', (800, 600), buffer)
+            print("Attempting to capture screenshot...")
             
-            # Get Gemini's analysis
-            response = self.gemini_model.generate_content([
-                "Analyze this fighting game screenshot. Describe what's happening between the two characters, their positions, and any special moves or effects visible.",
-                image
-            ])
+            # Get the dimensions of the window
+            viewport = glGetIntegerv(GL_VIEWPORT)
+            width, height = viewport[2], viewport[3]
+
+            # Read the framebuffer directly from OpenGL
+            glPixelStorei(GL_PACK_ALIGNMENT, 1)
+            buffer = glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE)
+            
+            # Convert to PIL Image and flip vertically (OpenGL coordinates are flipped)
+            image = Image.frombytes('RGB', (width, height), buffer)
+            image = image.transpose(Image.FLIP_TOP_BOTTOM)
+            
+            print("Sending to Gemini...")
+            # Enhanced prompt for more dynamic commentary
+            prompt = """
+            You're a fighting game commentator! Analyze this screenshot and provide exciting commentary about:
+            - The blue fighter (Player 1) and red fighter (Player 2)'s positions
+            - Any active special moves (fire breath, missiles, punches)
+            - The current state of battle (health bars, who's winning)
+            - Any visual effects or explosions
+            Keep it brief, energetic, and fun - like a real fighting game announcer!
+            """
+            
+            response = self.gemini_model.generate_content([prompt, image])
             
             self.last_analysis_time = current_time
             return response.text
             
         except Exception as e:
             print(f"Screenshot analysis failed: {e}")
+            import traceback
+            traceback.print_exc()
             return None
+
+    def draw_analysis(self):
+        """Draw the Gemini analysis on screen"""
+        glPushMatrix()
+        glMatrixMode(GL_PROJECTION)
+        glPushMatrix()
+        glLoadIdentity()
+        glOrtho(-1, 1, -1, 1, -1, 1)
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        
+        # Disable lighting and depth testing for 2D text
+        glDisable(GL_LIGHTING)
+        glDisable(GL_DEPTH_TEST)
+        
+        # Split analysis into lines for better display
+        words = self.current_analysis.split()
+        lines = []
+        current_line = []
+        line_length = 0
+        
+        for word in words:
+            if line_length + len(word) > 50:  # Max chars per line
+                lines.append(' '.join(current_line))
+                current_line = [word]
+                line_length = len(word)
+            else:
+                current_line.append(word)
+                line_length += len(word) + 1
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        # Draw semi-transparent background
+        glColor4f(0, 0, 0, 0.7)
+        glBegin(GL_QUADS)
+        glVertex3f(-0.9, 0.5, 0)
+        glVertex3f(0.9, 0.5, 0)
+        glVertex3f(0.9, -0.5, 0)
+        glVertex3f(-0.9, -0.5, 0)
+        glEnd()
+        
+        # Render text lines
+        y_pos = 0.3
+        for line in lines:
+            text_surface = self.font.render(line, True, (255, 255, 255))
+            text_data = pygame.image.tostring(text_surface, 'RGBA', True)
+            
+            glRasterPos2f(-0.85, y_pos)
+            glDrawPixels(text_surface.get_width(), text_surface.get_height(), 
+                        GL_RGBA, GL_UNSIGNED_BYTE, text_data)
+            y_pos -= 0.1
+        
+        # Restore state
+        glEnable(GL_DEPTH_TEST)
+        glEnable(GL_LIGHTING)
+        
+        glMatrixMode(GL_PROJECTION)
+        glPopMatrix()
+        glMatrixMode(GL_MODELVIEW)
+        glPopMatrix()
