@@ -59,9 +59,30 @@ A 3D fighting game built with Python, Pygame, and OpenGL featuring dynamic comba
 
 ## Installation
 
+Method 1 (Recommended):
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/retro-fighting-game.git
+git clone https://github.com/yourusername/battlers.git
+```
+
+2. Run the install script:
+```bash
+python install.py
+```
+
+3. Activate the virtual environment:
+   - On Windows: `.venv\Scripts\activate`
+   - On Unix/MacOS: `source .venv/bin/activate`
+
+4. Run the game:
+```bash
+python game.py
+```
+
+Method 2 (Manual):
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/battlers.git
 ```
 
 2. Install requirements:
