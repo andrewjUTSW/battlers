@@ -11,6 +11,8 @@
 
 A 3D fighting game built with Python, Pygame, and OpenGL featuring dynamic combat mechanics and special abilities.
 
+![Game Screenshot](assets/battlers.png)
+
 ## Features
 
 - Two-player combat system
