@@ -1,5 +1,14 @@
 # Retro Fighting Game
 
+```
+                                    FIGHT!
+    P1                                                  P2
+    [■]█                                              █[■]
+    /|\                                               /|\
+    / \                                               / \
+  ══════════════════════════════════════════════════════════
+```
+
 A 3D fighting game built with Python, Pygame, and OpenGL featuring dynamic combat mechanics and special abilities.
 
 ## Features
