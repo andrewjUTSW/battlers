@@ -97,15 +97,13 @@ class FightingGame:
             if self.player1.shoot():
                 self.sound_manager.play('shoot')
         
+        # Event handling for window close and escape
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
-                elif event.key == pygame.K_SPACE:
-                    self.player1.shoot()
-                    self.sound_manager.play('shoot')
 
     def update(self):
         # Update characters
@@ -119,26 +117,32 @@ class FightingGame:
         for projectile in self.all_projectiles:
             projectile.update()
             
-            # Determine projectile owner and target
-            if projectile in self.player1.projectiles:
-                target = self.player2
-                shooter = self.player1
-            else:
-                target = self.player1
-                shooter = self.player2
-                
-            if self.check_collision(projectile, target):
-                print(f"{target.name} was hit by {shooter.name}'s projectile!")
-                target.strength -= 10
-                projectile.active = False
-                self.sound_manager.play('hit')
-                
-                if target.strength <= 0:
-                    print(f"{target.name} has been defeated!")
-                    target.start_explosion()
-                    self.sound_manager.play('explosion')
-                    if target == self.player2:
+            # Get the original position of the projectile to determine owner
+            if projectile.position[0] < 0:  # Started from left side (player1)
+                if self.check_collision(projectile, self.player2):
+                    print(f"{self.player2.name} was hit by a missile!")
+                    self.player2.strength -= 15  # Increased damage for missiles
+                    projectile.active = False
+                    self.score += 15
+                    self.sound_manager.play('hit')
+                    
+                    if self.player2.strength <= 0:
+                        print(f"{self.player2.name} has been defeated!")
+                        self.player2.start_explosion()
+                        self.sound_manager.play('explosion')
                         self.score += 50
+            else:  # Started from right side (player2)
+                if self.check_collision(projectile, self.player1):
+                    print(f"{self.player1.name} was hit by a missile!")
+                    self.player1.strength -= 15
+                    projectile.active = False
+                    self.sound_manager.play('hit')
+                    
+                    if self.player1.strength <= 0:
+                        print(f"{self.player1.name} has been defeated!")
+                        self.player1.start_explosion()
+                        self.sound_manager.play('explosion')
+                        self.running = False
 
         # Add new projectiles from both players to the main list
         for projectile in self.player1.projectiles + self.player2.projectiles:

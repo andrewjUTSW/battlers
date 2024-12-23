@@ -186,14 +186,14 @@ class Character:
         if self.shoot_cooldown <= 0 and self.pistols > 0:
             direction = (1.0 if self.position[0] < 0 else -1.0, 0, 0)
             start_pos = (
-                self.position[0] + direction[0],
-                self.position[1] + 0.5,  # Adjust height to shoot from chest
+                self.position[0] + direction[0],  # Start slightly in front
+                self.position[1] + 0.5,           # Shoot from chest height
                 self.position[2]
             )
             projectile = Projectile(
                 position=start_pos,
                 direction=direction,
-                speed=0.1
+                speed=0.1  # Consistent speed
             )
             self.projectiles.append(projectile)
             self.shoot_cooldown = self.shoot_cooldown_max
@@ -287,7 +287,10 @@ class Character:
         glPushMatrix()
         glTranslatef(-0.3, -1, 0)
         if self.is_kicking and self.kick_frame < 10:
-            glRotatef(-60 * self.kick_frame/10, 0, 0, 1)
+            # Rotate leg up more (-90 degrees instead of -60)
+            glRotatef(-90 * self.kick_frame/10, 0, 0, 1)
+            # Add upward translation during kick
+            glTranslatef(0, 0.3 * self.kick_frame/10, 0)
         self.draw_limb(0.2, 0.8)
         glPopMatrix()
         
@@ -295,7 +298,10 @@ class Character:
         glPushMatrix()
         glTranslatef(0.3, -1, 0)
         if self.is_kicking and self.kick_frame < 10:
-            glRotatef(60 * self.kick_frame/10, 0, 0, 1)
+            # Rotate leg up more (90 degrees instead of 60)
+            glRotatef(90 * self.kick_frame/10, 0, 0, 1)
+            # Add upward translation during kick
+            glTranslatef(0, 0.3 * self.kick_frame/10, 0)
         self.draw_limb(0.2, 0.8)
         glPopMatrix()
 
