@@ -17,6 +17,8 @@ class Character:
         self.is_jumping = False
         self.jump_speed = 0.3
         self.gravity = 0.015
+        self.jumps_left = 2  # Track available jumps
+        self.max_jumps = 2   # Maximum number of jumps
         
         # Explosion properties
         self.is_exploding = False
@@ -41,6 +43,15 @@ class Character:
         self.melee_damage = 15
         self.shoot_cooldown = 0
         self.shoot_cooldown_max = 20  # Frames between shots
+
+        # Fire breath properties
+        self.is_breathing_fire = False
+        self.fire_breath_duration = 0
+        self.fire_breath_max = 30  # Half second at 60 FPS
+        self.fire_breath_particles = []
+        self.fire_breath_damage = 1  # Damage per frame
+        self.fire_breath_cooldown = 0
+        self.fire_breath_cooldown_max = 120  # 2 second cooldown
 
     def start_explosion(self):
         self.is_exploding = True
@@ -107,6 +118,7 @@ class Character:
         if self.position[1] == 0 and self.velocity.y <= 0:
             self.velocity.y = 0
             self.is_jumping = False
+            self.jumps_left = self.max_jumps  # Reset jumps when landing
 
         # Update AI behavior if this is an AI character
         if self.is_ai:
@@ -115,6 +127,20 @@ class Character:
         # Update attack cooldown
         if self.attack_cooldown > 0:
             self.attack_cooldown -= 1
+
+        # Update fire breath
+        if self.fire_breath_cooldown > 0:
+            self.fire_breath_cooldown -= 1
+            
+        if self.is_breathing_fire:
+            self.fire_breath_duration += 1
+            if self.fire_breath_duration >= self.fire_breath_max:
+                self.is_breathing_fire = False
+                self.fire_breath_duration = 0
+                self.fire_breath_cooldown = self.fire_breath_cooldown_max
+            
+            # Update fire particles
+            self.update_fire_breath()
 
     def update_ai(self):
         self.ai_timer += 1
@@ -177,9 +203,13 @@ class Character:
                 self.ai_state = 'dodge'
 
     def jump(self):
-        if not self.is_jumping:
+        # Allow jump if we have jumps left
+        if self.jumps_left > 0:
             self.velocity.y = self.jump_speed
+            if self.jumps_left == 1:  # Second jump
+                self.velocity.y *= 0.8  # Slightly lower second jump
             self.is_jumping = True
+            self.jumps_left -= 1
             return True
         return False
 
@@ -219,6 +249,10 @@ class Character:
         # Draw limbs
         self.draw_arms()
         self.draw_legs()
+        
+        # Draw fire breath if active
+        if self.is_breathing_fire:
+            self.draw_fire_breath()
         
         glPopMatrix()
 
@@ -358,36 +392,42 @@ class Character:
         
         # Animation
         time = pygame.time.get_ticks() / 1000.0
-        wing_flap = np.sin(time * 3) * 20  # Wing flapping animation
+        wing_flap = np.sin(time * 2) * 15  # Slower, subtler flap
         
         # Left wing
         glPushMatrix()
         glColor3f(*wing_color)
-        glTranslatef(-0.3, 0, -0.2)
-        glRotatef(wing_flap - 30, 0, 1, 0)  # Base angle + animation
+        # Move wing lower and further back
+        glTranslatef(-0.4, -0.3, -0.3)
+        glRotatef(wing_flap - 40, 0, 1, 0)  # Base angle + animation
         
-        # Draw main wing segments
-        for i in range(3):  # Three segments per wing
+        # Draw main wing segments with curved shape
+        for i in range(4):  # Four segments for longer wings
             glBegin(GL_TRIANGLES)
-            # Main wing membrane
+            # Main wing membrane with curved shape
             glVertex3f(0, 0, 0)
-            glVertex3f(-0.8 - i * 0.4, 0.3 + i * 0.2, -0.5 - i * 0.3)
-            glVertex3f(-0.6 - i * 0.4, -0.3 - i * 0.2, -0.4 - i * 0.3)
+            glVertex3f(-1.0 - i * 0.5, 0.4 + np.sin(i * 0.8) * 0.3, -0.6 - i * 0.3)
+            glVertex3f(-0.8 - i * 0.5, -0.4 + np.sin(i * 0.8) * 0.3, -0.5 - i * 0.3)
             
             # Wing details (darker shade)
-            glColor3f(*[c * 0.8 for c in wing_color])
-            glVertex3f(-0.2 - i * 0.3, 0.1 + i * 0.1, -0.2 - i * 0.2)
-            glVertex3f(-0.6 - i * 0.4, 0.2 + i * 0.15, -0.4 - i * 0.3)
-            glVertex3f(-0.5 - i * 0.4, -0.2 - i * 0.15, -0.3 - i * 0.3)
+            glColor3f(*[c * 0.7 for c in wing_color])
+            # Additional membrane details
+            glVertex3f(-0.2 - i * 0.4, 0.1 + np.sin(i * 0.8) * 0.2, -0.2 - i * 0.2)
+            glVertex3f(-0.7 - i * 0.5, 0.3 + np.sin(i * 0.8) * 0.2, -0.5 - i * 0.3)
+            glVertex3f(-0.6 - i * 0.5, -0.3 + np.sin(i * 0.8) * 0.2, -0.4 - i * 0.3)
             glEnd()
             
-            # Wing bones
-            glColor3f(*[c * 0.7 for c in wing_color])
+            # Wing bones and veins
+            glColor3f(*[c * 0.6 for c in wing_color])
             glBegin(GL_LINES)
+            # Main bone
             glVertex3f(0, 0, 0)
-            glVertex3f(-0.8 - i * 0.4, 0.3 + i * 0.2, -0.5 - i * 0.3)
-            glVertex3f(0, 0, 0)
-            glVertex3f(-0.6 - i * 0.4, -0.3 - i * 0.2, -0.4 - i * 0.3)
+            glVertex3f(-1.2 - i * 0.5, np.sin(i * 0.8) * 0.3, -0.7 - i * 0.3)
+            # Secondary veins
+            for j in range(3):
+                t = j / 2.0
+                glVertex3f(-0.3 - i * 0.4 * t, 0.2 * t, -0.2 - i * 0.2 * t)
+                glVertex3f(-0.8 - i * 0.5 * t, -0.2 + np.sin(i * 0.8) * 0.3, -0.5 - i * 0.3 * t)
             glEnd()
             
             glColor3f(*wing_color)  # Reset color for next segment
@@ -396,30 +436,34 @@ class Character:
         # Right wing (mirrored)
         glPushMatrix()
         glColor3f(*wing_color)
-        glTranslatef(0.3, 0, -0.2)
-        glRotatef(-wing_flap + 30, 0, 1, 0)  # Opposite flap animation
+        glTranslatef(0.4, -0.3, -0.3)
+        glRotatef(-wing_flap + 40, 0, 1, 0)
         
-        for i in range(3):
+        for i in range(4):
             glBegin(GL_TRIANGLES)
             # Main wing membrane
             glVertex3f(0, 0, 0)
-            glVertex3f(0.8 + i * 0.4, 0.3 + i * 0.2, -0.5 - i * 0.3)
-            glVertex3f(0.6 + i * 0.4, -0.3 - i * 0.2, -0.4 - i * 0.3)
+            glVertex3f(1.0 + i * 0.5, 0.4 + np.sin(i * 0.8) * 0.3, -0.6 - i * 0.3)
+            glVertex3f(0.8 + i * 0.5, -0.4 + np.sin(i * 0.8) * 0.3, -0.5 - i * 0.3)
             
             # Wing details
-            glColor3f(*[c * 0.8 for c in wing_color])
-            glVertex3f(0.2 + i * 0.3, 0.1 + i * 0.1, -0.2 - i * 0.2)
-            glVertex3f(0.6 + i * 0.4, 0.2 + i * 0.15, -0.4 - i * 0.3)
-            glVertex3f(0.5 + i * 0.4, -0.2 - i * 0.15, -0.3 - i * 0.3)
+            glColor3f(*[c * 0.7 for c in wing_color])
+            glVertex3f(0.2 + i * 0.4, 0.1 + np.sin(i * 0.8) * 0.2, -0.2 - i * 0.2)
+            glVertex3f(0.7 + i * 0.5, 0.3 + np.sin(i * 0.8) * 0.2, -0.5 - i * 0.3)
+            glVertex3f(0.6 + i * 0.5, -0.3 + np.sin(i * 0.8) * 0.2, -0.4 - i * 0.3)
             glEnd()
             
-            # Wing bones
-            glColor3f(*[c * 0.7 for c in wing_color])
+            # Wing bones and veins
+            glColor3f(*[c * 0.6 for c in wing_color])
             glBegin(GL_LINES)
+            # Main bone
             glVertex3f(0, 0, 0)
-            glVertex3f(0.8 + i * 0.4, 0.3 + i * 0.2, -0.5 - i * 0.3)
-            glVertex3f(0, 0, 0)
-            glVertex3f(0.6 + i * 0.4, -0.3 - i * 0.2, -0.4 - i * 0.3)
+            glVertex3f(1.2 + i * 0.5, np.sin(i * 0.8) * 0.3, -0.7 - i * 0.3)
+            # Secondary veins
+            for j in range(3):
+                t = j / 2.0
+                glVertex3f(0.3 + i * 0.4 * t, 0.2 * t, -0.2 - i * 0.2 * t)
+                glVertex3f(0.8 + i * 0.5 * t, -0.2 + np.sin(i * 0.8) * 0.3, -0.5 - i * 0.3 * t)
             glEnd()
             
             glColor3f(*wing_color)
@@ -721,6 +765,67 @@ class Character:
             glVertex3f(size, -size, 0)
             glVertex3f(size, size, 0)
             glVertex3f(-size, size, 0)
+            glEnd()
+            
+            glPopMatrix()
+
+    def breathe_fire(self):
+        if not self.is_breathing_fire and self.fire_breath_cooldown <= 0:
+            self.is_breathing_fire = True
+            self.fire_breath_duration = 0
+            return True
+        return False
+
+    def update_fire_breath(self):
+        # Add new particles
+        direction = 1.0 if self.position[0] < 0 else -1.0
+        for _ in range(3):  # Add 3 new particles per frame
+            spread = np.random.uniform(-0.2, 0.2)
+            speed = np.random.uniform(0.3, 0.5)
+            self.fire_breath_particles.append({
+                'position': [
+                    self.position[0] + direction * 0.5,  # Start from mouth
+                    self.position[1] + 1.2,  # Head height
+                    self.position[2]
+                ],
+                'velocity': [
+                    direction * speed,
+                    spread * 0.2,
+                    spread
+                ],
+                'size': np.random.uniform(0.1, 0.3),
+                'life': 20  # Particle lifetime in frames
+            })
+
+        # Update existing particles
+        for particle in self.fire_breath_particles:
+            particle['position'][0] += particle['velocity'][0]
+            particle['position'][1] += particle['velocity'][1]
+            particle['position'][2] += particle['velocity'][2]
+            particle['life'] -= 1
+            particle['size'] *= 0.95
+
+        # Remove dead particles
+        self.fire_breath_particles = [p for p in self.fire_breath_particles if p['life'] > 0]
+
+    def draw_fire_breath(self):
+        for particle in self.fire_breath_particles:
+            glPushMatrix()
+            
+            # Move to particle position
+            pos = particle['position']
+            glTranslatef(pos[0] - self.position[0], pos[1] - self.position[1], pos[2] - self.position[2])
+            
+            # Calculate color based on particle life
+            life_ratio = particle['life'] / 20.0
+            glColor3f(1.0, life_ratio * 0.7, life_ratio * 0.2)  # Red to orange gradient
+            
+            # Draw particle as billboard quad
+            size = particle['size']
+            glBegin(GL_TRIANGLES)
+            glVertex3f(-size, -size, 0)
+            glVertex3f(size, -size, 0)
+            glVertex3f(0, size, 0)
             glEnd()
             
             glPopMatrix()

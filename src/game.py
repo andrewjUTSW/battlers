@@ -77,7 +77,7 @@ class FightingGame:
     def handle_events(self):
         keys = pygame.key.get_pressed()
         
-        # Player 1 controls (Arrow keys + M,N,B)
+        # Player 1 controls (Arrow keys + M,N,B,V)
         if keys[pygame.K_LEFT]:
             self.player1.position[0] -= 0.1
         if keys[pygame.K_RIGHT]:
@@ -85,6 +85,11 @@ class FightingGame:
         if keys[pygame.K_UP]:
             if self.player1.jump():
                 self.sound_manager.play('jump')
+                jumps_remaining = self.player1.jumps_left
+                if jumps_remaining == 0:
+                    print("Double Jump!")
+                elif jumps_remaining == 1:
+                    print("First Jump!")
         if keys[pygame.K_m]:  # M for punch
             if self.player1.punch():
                 self.sound_manager.play('punch')
@@ -94,8 +99,11 @@ class FightingGame:
         if keys[pygame.K_b]:  # B for shoot
             if self.player1.shoot():
                 self.sound_manager.play('shoot')
+        if keys[pygame.K_v]:  # V for fire breath
+            if self.player1.breathe_fire():
+                self.sound_manager.play('fire')
 
-        # Player 2 controls (WASD + Q,E,R)
+        # Player 2 controls (WASD + Q,E,R,F)
         if keys[pygame.K_a]:
             self.player2.position[0] -= 0.1
         if keys[pygame.K_d]:
@@ -112,6 +120,9 @@ class FightingGame:
         if keys[pygame.K_r]:  # R for shoot
             if self.player2.shoot():
                 self.sound_manager.play('shoot')
+        if keys[pygame.K_f]:  # F for fire breath
+            if self.player2.breathe_fire():
+                self.sound_manager.play('fire')
         
         # Event handling for window close and escape
         for event in pygame.event.get():
@@ -183,6 +194,37 @@ class FightingGame:
         
         # Remove inactive projectiles
         self.all_projectiles = [p for p in self.all_projectiles if p.active]
+
+        # Check fire breath damage with improved effects
+        if self.player1.is_breathing_fire:
+            distance = abs(self.player1.position[0] - self.player2.position[0])
+            if distance < 3.0:  # Fire breath range
+                self.player2.strength -= 0.5  # Continuous damage per frame
+                self.score += 0.5
+                self.sound_manager.play('hit')
+                print(f"{self.player2.name} is being burned!")
+                
+                # Check if defeated by fire
+                if self.player2.strength <= 0:
+                    print(f"{self.player2.name} was incinerated!")
+                    self.player2.start_explosion()
+                    self.sound_manager.play('explosion')
+                    self.score += 50
+                    self.player2.strength = 0
+        
+        if self.player2.is_breathing_fire:
+            distance = abs(self.player1.position[0] - self.player2.position[0])
+            if distance < 3.0:  # Fire breath range
+                self.player1.strength -= 0.5  # Continuous damage per frame
+                self.sound_manager.play('hit')
+                print(f"{self.player1.name} is being burned!")
+                
+                # Check if defeated by fire
+                if self.player1.strength <= 0:
+                    print(f"{self.player1.name} was incinerated!")
+                    self.player1.start_explosion()
+                    self.sound_manager.play('explosion')
+                    self.player1.strength = 0
 
     def draw_score(self):
         glPushMatrix()

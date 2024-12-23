@@ -60,6 +60,7 @@ Player 1 (Blue):
 - **M**: Punch
 - **N**: Kick
 - **B**: Shoot
+- **V**: Breathe fire
 
 Player 2 (Red):
 - **A/D**: Move left/right
@@ -67,6 +68,7 @@ Player 2 (Red):
 - **Q**: Punch
 - **E**: Kick
 - **R**: Shoot
+- **F**: Breathe fire
 
 General:
 - **ESC**: Quit game
