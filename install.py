@@ -48,6 +48,15 @@ def install_requirements():
         print("Installing basic requirements...")
         subprocess.run(['uv', 'pip', 'install', '-r', 'requirements.txt'], check=True)
 
+def setup_environment():
+    """Create .env file if it doesn't exist."""
+    if not os.path.exists('.env'):
+        print("\nCreating .env file...")
+        with open('.env', 'w') as f:
+            f.write("# Add your Google Gemini API key here\n")
+            f.write("GEMINI_API_KEY=your_api_key_here\n")
+        print("Please edit .env file and add your Gemini API key")
+
 def main():
     print("Starting game installation...")
     
@@ -57,6 +66,7 @@ def main():
     
     setup_virtual_environment()
     install_requirements()
+    setup_environment()
     
     print("\nInstallation completed successfully!")
     print("\nTo start the game:")

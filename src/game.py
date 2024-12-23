@@ -3,6 +3,10 @@ from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
 import numpy as np
+import google.generativeai as genai
+from PIL import Image
+import io
+import os
 
 from src.sound_manager import SoundManager
 from src.characters import Character, Projectile
@@ -55,6 +59,18 @@ class FightingGame:
 
         # Melee combat range
         self.melee_range = 1.5
+
+        # Initialize Gemini
+        try:
+            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+            self.gemini_model = genai.GenerativeModel('gemini-pro-vision')
+        except Exception as e:
+            print(f"Warning: Could not initialize Gemini: {e}")
+            self.gemini_model = None
+            
+        # Add screenshot analysis cooldown
+        self.last_analysis_time = 0
+        self.analysis_cooldown = 5000  # 5 seconds between analyses
 
     def initialize_characters(self):
         self.player1 = Character(
@@ -126,6 +142,14 @@ class FightingGame:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
+
+        # Add screenshot analysis hotkey (Tab key)
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_TAB:
+                    analysis = self.analyze_screenshot()
+                    if analysis:
+                        print("\nGemini Analysis:", analysis)
 
     def update(self):
         # Check if either character is already defeated
@@ -417,3 +441,29 @@ class FightingGame:
                 self.sound_manager.play('hit')
                 print(f"{self.player2.name} was hit for {damage:.1f} damage!")
                 self.score += damage
+
+    def analyze_screenshot(self):
+        if not self.gemini_model:
+            return "Gemini API not configured"
+            
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_analysis_time < self.analysis_cooldown:
+            return None
+            
+        try:
+            # Capture current frame
+            buffer = pygame.image.tostring(pygame.display.get_surface(), 'RGB')
+            image = Image.frombytes('RGB', (800, 600), buffer)
+            
+            # Get Gemini's analysis
+            response = self.gemini_model.generate_content([
+                "Analyze this fighting game screenshot. Describe what's happening between the two characters, their positions, and any special moves or effects visible.",
+                image
+            ])
+            
+            self.last_analysis_time = current_time
+            return response.text
+            
+        except Exception as e:
+            print(f"Screenshot analysis failed: {e}")
+            return None
