@@ -1,6 +1,7 @@
 import numpy as np
 from OpenGL.GL import *
 from pygame.math import Vector3
+import pygame
 
 class Character:
     def __init__(self, name, position=(0, 0, 0), color=(1, 1, 1), strength=100, pistols=0, is_ai=False):
@@ -225,58 +226,236 @@ class Character:
         glPushMatrix()
         glTranslatef(0, 1.2, 0)
         
-        # Head cube
-        glColor3f(*self.color)
-        self.draw_cube(0, 0, 0, 0.4)
+        # Skull base (blend with character color)
+        skull_color = [0.8 + c * 0.2 for c in self.color]  # Blend white with character color
+        glColor3f(*skull_color)
+        self.draw_cube(0, 0, 0, 0.45)
         
-        # Face features
-        glColor3f(0, 0, 0)  # Black for face features
+        # Skull features
+        glColor3f(0.1, 0.1, 0.1)  # Darker black for depth
         
-        # Eyes (make them more aggressive)
+        # Deep eye sockets (more realistic)
+        glBegin(GL_QUADS)
+        # Left eye socket
+        glVertex3f(-0.15, 0.1, 0.23)
+        glVertex3f(-0.05, 0.1, 0.23)
+        glVertex3f(-0.05, -0.05, 0.23)
+        glVertex3f(-0.15, -0.05, 0.23)
+        # Add depth to left socket
+        glColor3f(0, 0, 0)  # Pure black for depth
+        glVertex3f(-0.14, 0.09, 0.231)
+        glVertex3f(-0.06, 0.09, 0.231)
+        glVertex3f(-0.06, -0.04, 0.231)
+        glVertex3f(-0.14, -0.04, 0.231)
+        
+        # Right eye socket
+        glColor3f(0.1, 0.1, 0.1)
+        glVertex3f(0.15, 0.1, 0.23)
+        glVertex3f(0.05, 0.1, 0.23)
+        glVertex3f(0.05, -0.05, 0.23)
+        glVertex3f(0.15, -0.05, 0.23)
+        # Add depth to right socket
+        glColor3f(0, 0, 0)
+        glVertex3f(0.14, 0.09, 0.231)
+        glVertex3f(0.06, 0.09, 0.231)
+        glVertex3f(0.06, -0.04, 0.231)
+        glVertex3f(0.14, -0.04, 0.231)
+        glEnd()
+        
+        # Nasal cavity (more detailed)
         glBegin(GL_TRIANGLES)
-        # Left eye
-        glVertex3f(-0.1, 0.1, 0.21)
-        glVertex3f(-0.2, -0.05, 0.21)  # Angled down for mean look
-        glVertex3f(0, -0.05, 0.21)
-        # Right eye
-        glVertex3f(0.1, 0.1, 0.21)
-        glVertex3f(0.2, -0.05, 0.21)  # Angled down for mean look
-        glVertex3f(0, -0.05, 0.21)
+        glVertex3f(-0.03, -0.1, 0.23)
+        glVertex3f(0.03, -0.1, 0.23)
+        glVertex3f(0, -0.15, 0.23)
+        # Nasal bridge
+        glVertex3f(-0.02, -0.05, 0.23)
+        glVertex3f(0.02, -0.05, 0.23)
+        glVertex3f(0, -0.1, 0.23)
         glEnd()
         
-        # Mouth (angry expression)
+        # Animated jaw
+        time = pygame.time.get_ticks() / 1000.0
+        jaw_angle = 20 * np.sin(time * 2)  # Oscillating jaw movement
+        
+        glPushMatrix()
+        glTranslatef(0, -0.2, 0)  # Move to jaw pivot point
+        glRotatef(jaw_angle, 1, 0, 0)  # Rotate around x-axis
+        
+        # Lower jaw bone
+        glColor3f(0.9, 0.9, 0.9)  # Slightly darker than skull
+        glBegin(GL_QUADS)
+        # Front of jaw
+        glVertex3f(-0.2, 0, 0.23)
+        glVertex3f(0.2, 0, 0.23)
+        glVertex3f(0.2, -0.15, 0.23)
+        glVertex3f(-0.2, -0.15, 0.23)
+        # Bottom of jaw
+        glVertex3f(-0.2, -0.15, 0.23)
+        glVertex3f(0.2, -0.15, 0.23)
+        glVertex3f(0.15, -0.15, 0)
+        glVertex3f(-0.15, -0.15, 0)
+        glEnd()
+        
+        # Lower teeth
+        glColor3f(1, 1, 1)
+        glBegin(GL_QUADS)
+        for i in range(4):
+            x = -0.15 + i * 0.1
+            glVertex3f(x, 0, 0.231)
+            glVertex3f(x + 0.08, 0, 0.231)
+            glVertex3f(x + 0.08, 0.05, 0.231)
+            glVertex3f(x, 0.05, 0.231)
+        glEnd()
+        glPopMatrix()
+        
+        # Upper teeth (fixed in place)
+        glColor3f(1, 1, 1)
+        glBegin(GL_QUADS)
+        for i in range(4):
+            x = -0.15 + i * 0.1
+            glVertex3f(x, -0.2, 0.231)
+            glVertex3f(x + 0.08, -0.2, 0.231)
+            glVertex3f(x + 0.08, -0.15, 0.231)
+            glVertex3f(x, -0.15, 0.231)
+        glEnd()
+        
+        # Cranial details (suture lines)
+        glColor3f(0.8, 0.8, 0.8)
         glBegin(GL_LINES)
-        glVertex3f(-0.15, -0.15, 0.21)
-        glVertex3f(0.15, -0.15, 0.21)
+        # Coronal suture
+        glVertex3f(-0.22, 0.1, 0.23)
+        glVertex3f(0.22, 0.1, 0.23)
+        # Sagittal suture
+        glVertex3f(0, -0.1, 0.23)
+        glVertex3f(0, 0.22, 0.23)
         glEnd()
         
-        # Horns - now longer and more dramatic
-        glColor3f(0.6, 0.6, 0.6)  # Slightly darker gray for main horns
+        # Draw flames
+        self.draw_flames()
+        
+        # Horns - now darker and more menacing
+        glColor3f(0.2, 0.2, 0.2)  # Even darker gray for horns
         glBegin(GL_TRIANGLES)
         # Left horn
-        glVertex3f(-0.2, 0.3, 0)    # Base
-        glVertex3f(-0.4, 0.8, 0)    # Longer tip
-        glVertex3f(-0.1, 0.3, 0)    # Base
+        glVertex3f(-0.2, 0.3, 0)
+        glVertex3f(-0.4, 0.9, 0)  # Made horns longer
+        glVertex3f(-0.1, 0.3, 0)
         
         # Right horn
-        glVertex3f(0.2, 0.3, 0)     # Base
-        glVertex3f(0.4, 0.8, 0)     # Longer tip
-        glVertex3f(0.1, 0.3, 0)     # Base
-        
-        # Secondary horns (smaller ones)
-        glColor3f(0.7, 0.7, 0.7)    # Lighter gray for secondary horns
-        # Left secondary horn
-        glVertex3f(-0.15, 0.3, 0)
-        glVertex3f(-0.25, 0.6, 0.1) # Angled slightly forward
-        glVertex3f(-0.05, 0.3, 0)
-        
-        # Right secondary horn
-        glVertex3f(0.15, 0.3, 0)
-        glVertex3f(0.25, 0.6, 0.1)  # Angled slightly forward
-        glVertex3f(0.05, 0.3, 0)
+        glVertex3f(0.2, 0.3, 0)
+        glVertex3f(0.4, 0.9, 0)  # Made horns longer
+        glVertex3f(0.1, 0.3, 0)
         glEnd()
         
+        # Add wings
+        self.draw_wings()
+        
         glPopMatrix()
+
+    def draw_wings(self):
+        # Wing base color (blend with character color)
+        wing_color = [0.9 + c * 0.1 for c in self.color]
+        
+        # Animation
+        time = pygame.time.get_ticks() / 1000.0
+        wing_flap = np.sin(time * 3) * 20  # Wing flapping animation
+        
+        # Left wing
+        glPushMatrix()
+        glColor3f(*wing_color)
+        glTranslatef(-0.3, 0, -0.2)
+        glRotatef(wing_flap - 30, 0, 1, 0)  # Base angle + animation
+        
+        # Draw main wing segments
+        for i in range(3):  # Three segments per wing
+            glBegin(GL_TRIANGLES)
+            # Main wing membrane
+            glVertex3f(0, 0, 0)
+            glVertex3f(-0.8 - i * 0.4, 0.3 + i * 0.2, -0.5 - i * 0.3)
+            glVertex3f(-0.6 - i * 0.4, -0.3 - i * 0.2, -0.4 - i * 0.3)
+            
+            # Wing details (darker shade)
+            glColor3f(*[c * 0.8 for c in wing_color])
+            glVertex3f(-0.2 - i * 0.3, 0.1 + i * 0.1, -0.2 - i * 0.2)
+            glVertex3f(-0.6 - i * 0.4, 0.2 + i * 0.15, -0.4 - i * 0.3)
+            glVertex3f(-0.5 - i * 0.4, -0.2 - i * 0.15, -0.3 - i * 0.3)
+            glEnd()
+            
+            # Wing bones
+            glColor3f(*[c * 0.7 for c in wing_color])
+            glBegin(GL_LINES)
+            glVertex3f(0, 0, 0)
+            glVertex3f(-0.8 - i * 0.4, 0.3 + i * 0.2, -0.5 - i * 0.3)
+            glVertex3f(0, 0, 0)
+            glVertex3f(-0.6 - i * 0.4, -0.3 - i * 0.2, -0.4 - i * 0.3)
+            glEnd()
+            
+            glColor3f(*wing_color)  # Reset color for next segment
+        glPopMatrix()
+        
+        # Right wing (mirrored)
+        glPushMatrix()
+        glColor3f(*wing_color)
+        glTranslatef(0.3, 0, -0.2)
+        glRotatef(-wing_flap + 30, 0, 1, 0)  # Opposite flap animation
+        
+        for i in range(3):
+            glBegin(GL_TRIANGLES)
+            # Main wing membrane
+            glVertex3f(0, 0, 0)
+            glVertex3f(0.8 + i * 0.4, 0.3 + i * 0.2, -0.5 - i * 0.3)
+            glVertex3f(0.6 + i * 0.4, -0.3 - i * 0.2, -0.4 - i * 0.3)
+            
+            # Wing details
+            glColor3f(*[c * 0.8 for c in wing_color])
+            glVertex3f(0.2 + i * 0.3, 0.1 + i * 0.1, -0.2 - i * 0.2)
+            glVertex3f(0.6 + i * 0.4, 0.2 + i * 0.15, -0.4 - i * 0.3)
+            glVertex3f(0.5 + i * 0.4, -0.2 - i * 0.15, -0.3 - i * 0.3)
+            glEnd()
+            
+            # Wing bones
+            glColor3f(*[c * 0.7 for c in wing_color])
+            glBegin(GL_LINES)
+            glVertex3f(0, 0, 0)
+            glVertex3f(0.8 + i * 0.4, 0.3 + i * 0.2, -0.5 - i * 0.3)
+            glVertex3f(0, 0, 0)
+            glVertex3f(0.6 + i * 0.4, -0.3 - i * 0.2, -0.4 - i * 0.3)
+            glEnd()
+            
+            glColor3f(*wing_color)
+        glPopMatrix()
+
+    def draw_flames(self):
+        # Base of flames
+        flame_colors = [
+            (1.0, 0.0, 0.0),  # Red
+            (1.0, 0.5, 0.0),  # Orange
+            (1.0, 0.8, 0.0)   # Yellow
+        ]
+        
+        # Current time for animation
+        time = pygame.time.get_ticks() / 200.0
+        
+        for i, color in enumerate(flame_colors):
+            glColor3f(*color)
+            glBegin(GL_TRIANGLES)
+            
+            # Multiple flame tongues with wave effect
+            for j in range(6):
+                x_offset = 0.1 * np.sin(time + j)
+                height = 0.3 + 0.1 * np.sin(time * 2 + j)
+                width = 0.15 - i * 0.03  # Flames get thinner towards the center
+                
+                # Main flame
+                glVertex3f(-width + x_offset, 0.2, 0)
+                glVertex3f(width + x_offset, 0.2, 0)
+                glVertex3f(0 + x_offset, 0.2 + height, 0)
+                
+                # Side flames
+                glVertex3f(-width*0.7 + x_offset, 0.2, width)
+                glVertex3f(width*0.7 + x_offset, 0.2, width)
+                glVertex3f(0 + x_offset, 0.2 + height*0.8, width*0.5)
+            glEnd()
 
     def draw_arms(self):
         # Left arm with bicep
