@@ -1,155 +1,100 @@
-# Retro 3D Fighting Game
+# Retro Fighting Game
 
-A retro-style 3D fighting game built with Python, PyOpenGL, and Pygame. Features two characters in a 3D arena with projectile combat and special effects.
+A 3D fighting game built with Python, Pygame, and OpenGL featuring dynamic combat mechanics and special abilities.
 
 ## Features
 
-- 3D graphics with OpenGL rendering
-- Real-time combat mechanics
-- Character movement and jumping physics
-- Projectile system with collision detection
-- Health bars and score tracking
-- Sound effects for actions
-- Explosion animations
-- 60 FPS smooth gameplay
+- Two-player combat system
+- Dynamic physics-based movement
+- Multiple combat abilities:
+  - Melee attacks (punch/kick)
+  - Projectile attacks (missiles)
+  - Fire breath attacks
+- Advanced movement system:
+  - Double jumping
+  - Air control
+  - Momentum-based combat
+- Visual effects:
+  - Colored fire breath matching character colors
+  - Missile trails
+  - Explosion effects
+- Health system with visual health bars
+- Score tracking
 
-## Setup
+## Controls
 
-### Prerequisites
-- Python 3.10 or higher
-- uv (for virtual environment and package management)
+### Player 1 (Blue)
+- Movement: Arrow Keys (LEFT/RIGHT)
+- Jump/Double Jump: UP Arrow
+- Punch: M
+- Kick: N
+- Shoot Missile: B
+- Fire Breath: V
 
-### Installation
+### Player 2 (Red)
+- Movement: A/D Keys
+- Jump/Double Jump: W
+- Punch: Q
+- Kick: E
+- Shoot Missile: R
+- Fire Breath: F
 
-1. Install uv if you haven't already:
+## Combat Tips
+
+- Double jump can be used for better positioning
+- Fire breath must be aimed in the correct direction to deal damage
+- Combine attacks for effective combos
+- Use momentum for stronger melee attacks
+- Missiles are effective at long range
+- Fire breath is powerful at close range
+
+## Installation
+
+1. Clone the repository:
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone https://github.com/yourusername/retro-fighting-game.git
 ```
 
-2. Clone the repository:
+2. Install requirements:
 ```bash
-git clone <your-repo-url>
-cd <repo-name>
+pip install -r requirements.txt
 ```
 
-3. Create and activate virtual environment:
-```bash
-uv venv
-source .venv/bin/activate  # On Unix/MacOS
-# or
-.venv\Scripts\activate  # On Windows
-```
-
-4. Install dependencies:
-```bash
-uv pip install -r requirements.txt
-```
-
-## Playing the Game
-
-Start the game:
+3. Run the game:
 ```bash
 python game.py
 ```
 
-### Controls
+## Requirements
 
-Player 1 (Blue):
-- **LEFT/RIGHT Arrow Keys**: Move
-- **UP Arrow**: Jump
-- **M**: Punch
-- **N**: Kick
-- **B**: Shoot
-- **V**: Breathe fire
+- Python 3.x
+- Pygame
+- PyOpenGL
+- NumPy
 
-Player 2 (Red):
-- **A/D**: Move left/right
-- **W**: Jump
-- **Q**: Punch
-- **E**: Kick
-- **R**: Shoot
-- **F**: Breathe fire
+## Game Mechanics
 
-General:
-- **ESC**: Quit game
+### Movement
+- Characters can move left and right
+- Double jumping allows for aerial maneuvers
+- Momentum affects attack damage
 
-### Characters
-- **Captain Destructor** (Blue) - Player character with ranged attacks
-- **Villain** (Red) - Enemy character with health tracking
+### Combat
+- Melee attacks do damage based on momentum
+- Fire breath must be aimed correctly
+- Missiles leave trailing effects
+- Health bars show current character status
 
-## Project Structure
-
-```
-.
-├── .gitignore          # Git ignore file
-├── README.md           # Documentation
-├── requirements.txt    # Python dependencies
-├── game.py            # Game launcher
-├── sounds/            # Sound effects directory
-│   ├── explosion.wav
-│   ├── hit.wav
-│   ├── jump.wav
-│   └── shoot.wav
-└── src/               # Source code
-    ├── __init__.py
-    ├── game.py        # Main game logic
-    ├── characters.py  # Character classes
-    └── sound_manager.py # Sound management
-```
-
-## Technical Details
-
-### Graphics
-- OpenGL for 3D rendering
-- Custom character models
-- Real-time lighting
-- 2D overlay for UI elements
-
-### Physics
-- Basic gravity simulation
-- Collision detection
-- Projectile trajectory calculation
-
-### Audio
-- Sound effects for actions:
-  - Jumping
-  - Shooting
-  - Hit detection
-  - Explosions
-
-## Development
-
-### Current Features
-- 3D environment with ground plane
-- Character movement and jumping
-- Projectile combat system
-- Health tracking
-- Score system
-- Sound effects
-- Explosion animations
-
-### Planned Features
-- Additional character moves
-- Power-ups
-- Multiple levels
-- Menu system
-- High score tracking
-- More special effects
+### Special Effects
+- Character-colored fire breath
+- Missile trails
+- Explosion particles
+- Visual hit feedback
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Feel free to submit issues and enhancement requests!
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- PyGame community for the game development framework
-- OpenGL for 3D graphics capabilities
-- Python community for support and resources
+[Your chosen license]
