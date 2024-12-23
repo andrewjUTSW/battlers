@@ -279,20 +279,46 @@ class Character:
         glPopMatrix()
 
     def draw_arms(self):
-        # Left arm
+        # Left arm with bicep
         glPushMatrix()
         glTranslatef(-0.6, 0.5, 0)
         if self.is_punching and self.punch_frame < 10:
             glRotatef(45 * self.punch_frame/10, 0, 0, 1)
-        self.draw_limb(0.2, 0.6)
+            # Flex bicep more during punch
+            bicep_flex = 0.3 + 0.1 * (self.punch_frame/10)
+        else:
+            bicep_flex = 0.3
+        
+        # Upper arm (bicep)
+        glColor3f(*[c * 0.9 for c in self.color])
+        self.draw_bicep(0, -0.2, 0, bicep_flex)
+        
+        # Tricep
+        glColor3f(*[c * 0.85 for c in self.color])
+        self.draw_tricep(0, -0.2, 0, 0.2)
+        
+        # Lower arm with muscles
+        glColor3f(*self.color)
+        self.draw_limb(0.2, 0.6, True)
         glPopMatrix()
         
-        # Right arm
+        # Right arm (mirror of left)
         glPushMatrix()
         glTranslatef(0.6, 0.5, 0)
         if self.is_punching and self.punch_frame < 10:
             glRotatef(-45 * self.punch_frame/10, 0, 0, 1)
-        self.draw_limb(0.2, 0.6)
+            bicep_flex = 0.3 + 0.1 * (self.punch_frame/10)
+        else:
+            bicep_flex = 0.3
+        
+        glColor3f(*[c * 0.9 for c in self.color])
+        self.draw_bicep(0, -0.2, 0, bicep_flex)
+        
+        glColor3f(*[c * 0.85 for c in self.color])
+        self.draw_tricep(0, -0.2, 0, 0.2)
+        
+        glColor3f(*self.color)
+        self.draw_limb(0.2, 0.6, True)
         glPopMatrix()
 
     def draw_legs(self):
@@ -300,22 +326,29 @@ class Character:
         glPushMatrix()
         glTranslatef(-0.3, -1, 0)
         if self.is_kicking and self.kick_frame < 10:
-            # Rotate leg up more (-90 degrees instead of -60)
             glRotatef(-90 * self.kick_frame/10, 0, 0, 1)
-            # Add upward translation during kick
             glTranslatef(0, 0.3 * self.kick_frame/10, 0)
-        self.draw_limb(0.2, 0.8)
+            # Flex leg muscles during kick
+            muscle_flex = 1.2
+        else:
+            muscle_flex = 1.0
+        
+        glColor3f(*self.color)
+        self.draw_limb(0.25 * muscle_flex, 0.8, False)  # Wider leg with muscle definition
         glPopMatrix()
         
         # Right leg
         glPushMatrix()
         glTranslatef(0.3, -1, 0)
         if self.is_kicking and self.kick_frame < 10:
-            # Rotate leg up more (90 degrees instead of 60)
             glRotatef(90 * self.kick_frame/10, 0, 0, 1)
-            # Add upward translation during kick
             glTranslatef(0, 0.3 * self.kick_frame/10, 0)
-        self.draw_limb(0.2, 0.8)
+            muscle_flex = 1.2
+        else:
+            muscle_flex = 1.0
+        
+        glColor3f(*self.color)
+        self.draw_limb(0.25 * muscle_flex, 0.8, False)
         glPopMatrix()
 
     def punch(self):
@@ -335,18 +368,37 @@ class Character:
         return False
 
     def draw_torso(self):
-        # Draw the main body cube
         glPushMatrix()
         glTranslatef(0, 0, 0)
         
-        # Main body
+        # Main body (torso)
         glColor3f(*self.color)
-        self.draw_cube(0, 0, 0, 0.8)  # Bigger cube for torso
+        self.draw_cube(0, 0, 0, 0.8)  # Base torso
+        
+        # Add chest muscles
+        glColor3f(*[c * 0.8 for c in self.color])  # Slightly darker shade
+        glPushMatrix()
+        glTranslatef(0, 0.2, 0.41)  # Move slightly forward
+        
+        # Left pec
+        glBegin(GL_TRIANGLES)
+        glVertex3f(-0.3, 0.2, 0)
+        glVertex3f(-0.1, 0, 0)
+        glVertex3f(-0.3, -0.1, 0)
+        glEnd()
+        
+        # Right pec
+        glBegin(GL_TRIANGLES)
+        glVertex3f(0.3, 0.2, 0)
+        glVertex3f(0.1, 0, 0)
+        glVertex3f(0.3, -0.1, 0)
+        glEnd()
         
         glPopMatrix()
+        glPopMatrix()
 
-    def draw_limb(self, width, length):
-        # Draw a limb (arm or leg) as an elongated cube
+    def draw_limb(self, width, length, is_arm=True):
+        # Base limb shape
         glBegin(GL_QUADS)
         # Front face
         glVertex3f(-width/2, 0, width/2)
@@ -358,17 +410,85 @@ class Character:
         glVertex3f(width/2, 0, -width/2)
         glVertex3f(width/2, -length, -width/2)
         glVertex3f(-width/2, -length, -width/2)
-        # Left face
+        # Side faces
         glVertex3f(-width/2, 0, -width/2)
         glVertex3f(-width/2, 0, width/2)
         glVertex3f(-width/2, -length, width/2)
         glVertex3f(-width/2, -length, -width/2)
-        # Right face
+        
         glVertex3f(width/2, 0, -width/2)
         glVertex3f(width/2, 0, width/2)
         glVertex3f(width/2, -length, width/2)
         glVertex3f(width/2, -length, -width/2)
         glEnd()
+
+        # Add muscle definition
+        glColor3f(*[c * 0.85 for c in self.color])  # Slightly darker for muscles
+        
+        if is_arm:
+            # Forearm muscle bulge
+            glBegin(GL_TRIANGLES)
+            # Front bulge
+            glVertex3f(-width/3, -length*0.3, width/2 + 0.05)
+            glVertex3f(width/3, -length*0.3, width/2 + 0.05)
+            glVertex3f(0, -length*0.6, width/2 + 0.08)
+            glEnd()
+        else:
+            # Calf muscle
+            glBegin(GL_TRIANGLES)
+            # Back calf bulge
+            glVertex3f(-width/2, -length*0.3, -width/2 - 0.05)
+            glVertex3f(width/2, -length*0.3, -width/2 - 0.05)
+            glVertex3f(0, -length*0.6, -width/2 - 0.1)
+            # Side calf bulges
+            glVertex3f(-width/2 - 0.05, -length*0.3, 0)
+            glVertex3f(-width/2 - 0.05, -length*0.6, 0)
+            glVertex3f(-width/2, -length*0.45, 0)
+            
+            glVertex3f(width/2 + 0.05, -length*0.3, 0)
+            glVertex3f(width/2 + 0.05, -length*0.6, 0)
+            glVertex3f(width/2, -length*0.45, 0)
+            glEnd()
+
+    def draw_bicep(self, x, y, z, size):
+        # Draw a bulging bicep
+        glPushMatrix()
+        glTranslatef(x, y, z)
+        
+        # Main bicep bulge
+        glBegin(GL_TRIANGLES)
+        # Front bulge
+        glVertex3f(-size, 0, size)
+        glVertex3f(size, 0, size)
+        glVertex3f(0, size*1.5, size*0.8)
+        # Back bulge
+        glVertex3f(-size, 0, -size)
+        glVertex3f(size, 0, -size)
+        glVertex3f(0, size*1.5, -size*0.8)
+        # Side bulges
+        glVertex3f(-size, 0, -size)
+        glVertex3f(-size, 0, size)
+        glVertex3f(0, size*1.5, 0)
+        
+        glVertex3f(size, 0, -size)
+        glVertex3f(size, 0, size)
+        glVertex3f(0, size*1.5, 0)
+        glEnd()
+        
+        glPopMatrix()
+
+    def draw_tricep(self, x, y, z, size):
+        glPushMatrix()
+        glTranslatef(x, y, z)
+        
+        glBegin(GL_TRIANGLES)
+        # Back tricep bulge
+        glVertex3f(-size, 0, -size)
+        glVertex3f(size, 0, -size)
+        glVertex3f(0, -size*1.2, -size*1.2)
+        glEnd()
+        
+        glPopMatrix()
 
     def draw_cube(self, x, y, z, size=1.0):
         # Helper function to draw a cube of given size
