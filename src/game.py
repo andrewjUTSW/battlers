@@ -8,6 +8,9 @@ from PIL import Image
 import io
 import os
 from dotenv import load_dotenv
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import nest_asyncio
 
 from src.sound_manager import SoundManager
 from src.characters import Character, Projectile
@@ -88,6 +91,14 @@ class FightingGame:
         self.analysis_display_time = 0
         self.analysis_display_duration = 5000  # Show for 5 seconds
 
+        # Initialize asyncio loop
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        nest_asyncio.apply()  # Allow nested event loops
+        
+        self.thread_pool = ThreadPoolExecutor(max_workers=1)
+        self.analysis_in_progress = False
+
     def initialize_characters(self):
         self.player1 = Character(
             name="Player 1", 
@@ -109,22 +120,16 @@ class FightingGame:
     def handle_events(self):
         keys = pygame.key.get_pressed()
         
-        # Combine all event handling into one loop
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
-                elif event.key == pygame.K_TAB:
-                    print("Tab pressed - attempting analysis...")  # Debug print
-                    analysis = self.analyze_screenshot()
-                    if analysis:
-                        print("\nGemini Analysis:", analysis)
-                        self.current_analysis = analysis
-                        self.analysis_display_time = pygame.time.get_ticks()
-                    else:
-                        print("No analysis returned")  # Debug print
+                elif event.key == pygame.K_TAB and not self.analysis_in_progress:
+                    self.analysis_in_progress = True
+                    # Run the coroutine in the event loop
+                    self.loop.run_until_complete(self.capture_and_analyze())
         
         # Player 1 controls
         if keys[pygame.K_LEFT]:
@@ -352,12 +357,15 @@ class FightingGame:
         pygame.display.flip() 
 
     def run(self):
-        while self.running:
-            self.handle_events()
-            self.update()
-            self.draw()
-            self.clock.tick(60)  # 60 FPS
-        pygame.quit() 
+        try:
+            while self.running:
+                self.handle_events()
+                self.update()
+                self.draw()
+                self.clock.tick(60)  # 60 FPS
+        finally:
+            self.loop.close()
+            pygame.quit()
 
     def draw_cube(self, x, y, z):
         # Helper function to draw a small cube
@@ -464,55 +472,58 @@ class FightingGame:
                 print(f"{self.player2.name} was hit for {damage:.1f} damage!")
                 self.score += damage
 
-    def analyze_screenshot(self):
-        if not self.gemini_model:
-            print("Gemini model not initialized")
-            return "Gemini API not configured"
-            
-        current_time = pygame.time.get_ticks()
-        if current_time - self.last_analysis_time < self.analysis_cooldown:
-            print("Analysis on cooldown")
-            return None
-            
+    async def process_screenshot_async(self, image):
+        prompt = """
+        You're a fighting game commentator! Analyze this screenshot and provide exciting commentary about:
+        - The blue fighter (Player 1) and red fighter (Player 2)'s positions
+        - Any active special moves (fire breath, missiles, punches)
+        - The current state of battle (health bars, who's winning)
+        - Any visual effects or explosions
+        Keep it brief, energetic, and fun - like a real fighting game announcer!
+        """
+        
         try:
-            print("Attempting to capture screenshot...")
-            
-            # Get the dimensions of the window
+            response = await asyncio.get_event_loop().run_in_executor(
+                self.thread_pool,
+                lambda: self.gemini_model.generate_content([prompt, image])
+            )
+            print("Gemini Response:", response.text)  # Debug print
+            return response.text
+        except Exception as e:
+            print(f"Error getting Gemini response: {e}")
+            return "Error analyzing game state"
+
+    async def capture_and_analyze(self):
+        try:
+            print("Starting capture and analysis...")  # Debug print
+            # Capture screenshot
+            glReadBuffer(GL_BACK)
             viewport = glGetIntegerv(GL_VIEWPORT)
             width, height = viewport[2], viewport[3]
-
-            # Read the framebuffer directly from OpenGL
-            glPixelStorei(GL_PACK_ALIGNMENT, 1)
-            buffer = glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE)
+            buffer = np.empty((height, width, 3), dtype=np.uint8)
+            glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer)
+            buffer = np.flipud(buffer)
+            image = Image.fromarray(buffer, mode='RGB')
+            image = image.resize((400, 300), Image.Resampling.LANCZOS)
             
-            # Convert to PIL Image and flip vertically (OpenGL coordinates are flipped)
-            image = Image.frombytes('RGB', (width, height), buffer)
-            image = image.transpose(Image.FLIP_TOP_BOTTOM)
-            
-            print("Sending to Gemini...")
-            # Enhanced prompt for more dynamic commentary
-            prompt = """
-            You're a fighting game commentator! Analyze this screenshot and provide exciting commentary about:
-            - The blue fighter (Player 1) and red fighter (Player 2)'s positions
-            - Any active special moves (fire breath, missiles, punches)
-            - The current state of battle (health bars, who's winning)
-            - Any visual effects or explosions
-            Keep it brief, energetic, and fun - like a real fighting game announcer!
-            """
-            
-            response = self.gemini_model.generate_content([prompt, image])
-            
-            self.last_analysis_time = current_time
-            return response.text
-            
+            # Process in background
+            analysis = await self.process_screenshot_async(image)
+            if analysis:
+                print("Got analysis:", analysis)  # Debug print
+                self.current_analysis = analysis
+                self.analysis_display_time = pygame.time.get_ticks()
+            else:
+                print("No analysis received")
         except Exception as e:
-            print(f"Screenshot analysis failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
+            print(f"Error in capture_and_analyze: {e}")
+        finally:
+            self.analysis_in_progress = False
 
     def draw_analysis(self):
         """Draw the Gemini analysis on screen"""
+        if not self.current_analysis:
+            return
+        
         glPushMatrix()
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
@@ -525,14 +536,25 @@ class FightingGame:
         glDisable(GL_LIGHTING)
         glDisable(GL_DEPTH_TEST)
         
-        # Split analysis into lines for better display
-        words = self.current_analysis.split()
+        # Draw a more visible background
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glColor4f(0, 0, 0, 0.8)  # More opaque background
+        glBegin(GL_QUADS)
+        glVertex3f(-0.95, 0.6, 0)   # Slightly larger box
+        glVertex3f(0.95, 0.6, 0)
+        glVertex3f(0.95, -0.2, 0)
+        glVertex3f(-0.95, -0.2, 0)
+        glEnd()
+        
+        # Split and render text
         lines = []
+        words = self.current_analysis.split()
         current_line = []
         line_length = 0
         
         for word in words:
-            if line_length + len(word) > 50:  # Max chars per line
+            if line_length + len(word) > 40:  # Shorter lines for better readability
                 lines.append(' '.join(current_line))
                 current_line = [word]
                 line_length = len(word)
@@ -543,27 +565,20 @@ class FightingGame:
         if current_line:
             lines.append(' '.join(current_line))
         
-        # Draw semi-transparent background
-        glColor4f(0, 0, 0, 0.7)
-        glBegin(GL_QUADS)
-        glVertex3f(-0.9, 0.5, 0)
-        glVertex3f(0.9, 0.5, 0)
-        glVertex3f(0.9, -0.5, 0)
-        glVertex3f(-0.9, -0.5, 0)
-        glEnd()
-        
-        # Render text lines
-        y_pos = 0.3
+        # Render text lines with larger font
+        y_pos = 0.4  # Start higher up
         for line in lines:
-            text_surface = self.font.render(line, True, (255, 255, 255))
+            # Use larger font for better visibility
+            text_surface = pygame.font.Font(None, 48).render(line, True, (255, 255, 0))  # Yellow text
             text_data = pygame.image.tostring(text_surface, 'RGBA', True)
             
-            glRasterPos2f(-0.85, y_pos)
+            glRasterPos2f(-0.9, y_pos)
             glDrawPixels(text_surface.get_width(), text_surface.get_height(), 
                         GL_RGBA, GL_UNSIGNED_BYTE, text_data)
-            y_pos -= 0.1
+            y_pos -= 0.15  # Larger spacing between lines
         
         # Restore state
+        glDisable(GL_BLEND)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_LIGHTING)
         
