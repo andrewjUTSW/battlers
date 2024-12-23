@@ -31,6 +31,14 @@ class Character:
         self.attack_cooldown = 0
         self.attack_cooldown_max = 60  # frames (1 second at 60 FPS)
 
+        # Melee combat properties
+        self.is_punching = False
+        self.is_kicking = False
+        self.punch_frame = 0
+        self.kick_frame = 0
+        self.melee_cooldown = 0
+        self.melee_damage = 15
+
     def start_explosion(self):
         self.is_exploding = True
         self.explosion_time = 0
@@ -88,40 +96,62 @@ class Character:
     def update_ai(self):
         self.ai_timer += 1
 
-        # Change state every few seconds
-        if self.ai_timer % 120 == 0:  # Every 2 seconds
-            self.choose_ai_state()
+        # Get more aggressive when player is in range
+        target_distance = abs(self.position[0] - (-3))  # Distance to player (at -3)
+        
+        # Change state more frequently when player is closer
+        state_change_interval = 60 if target_distance < 5 else 120  # Every 1 or 2 seconds
+        if self.ai_timer % state_change_interval == 0:
+            self.choose_ai_state(target_distance)
 
         # Execute current state
         if self.ai_state == 'move':
-            # Move back and forth
-            new_pos = self.position[0] + (self.move_speed * self.ai_move_direction)
+            # Move towards player with some randomness
+            target_x = -3  # Player position
+            direction = -1 if self.position[0] > target_x else 1
+            
+            # Add some tactical movement
+            if target_distance < 3:  # If too close, sometimes back away
+                if np.random.random() < 0.3:
+                    direction *= -1
+            
+            new_pos = self.position[0] + (self.move_speed * direction)
             if abs(new_pos) < 8:  # Stay within bounds
                 self.position[0] = new_pos
-            else:
-                self.ai_move_direction *= -1  # Reverse direction
 
         elif self.ai_state == 'attack':
-            # Attack if cooldown is ready
-            if self.attack_cooldown <= 0:
+            # Attack more frequently when closer to player
+            attack_chance = 0.2 if target_distance < 5 else 0.1
+            if self.attack_cooldown <= 0 and np.random.random() < attack_chance:
                 self.shoot()
-                self.attack_cooldown = self.attack_cooldown_max
+                self.attack_cooldown = self.attack_cooldown_max // 2  # Faster cooldown
 
-        elif self.ai_state == 'jump':
+        elif self.ai_state == 'dodge':
+            # Jump to dodge incoming projectiles
             if not self.is_jumping:
                 self.jump()
+                # Move sideways while jumping
+                direction = 1 if np.random.random() < 0.5 else -1
+                new_pos = self.position[0] + (self.move_speed * direction)
+                if abs(new_pos) < 8:
+                    self.position[0] = new_pos
 
-    def choose_ai_state(self):
-        # Randomly choose a new state with weighted probabilities
-        roll = np.random.random()
-        if roll < 0.4:  # 40% chance to move
-            self.ai_state = 'move'
-        elif roll < 0.7:  # 30% chance to attack
-            self.ai_state = 'attack'
-        elif roll < 0.8:  # 10% chance to jump
-            self.ai_state = 'jump'
-        else:  # 20% chance to idle
-            self.ai_state = 'idle'
+    def choose_ai_state(self, target_distance):
+        # Adjust probabilities based on distance to player
+        if target_distance < 4:  # Close range
+            if np.random.random() < 0.6:  # 60% chance to attack when close
+                self.ai_state = 'attack'
+            elif np.random.random() < 0.3:  # 30% chance to dodge
+                self.ai_state = 'dodge'
+            else:  # 10% chance to move
+                self.ai_state = 'move'
+        else:  # Long range
+            if np.random.random() < 0.5:  # 50% chance to move closer
+                self.ai_state = 'move'
+            elif np.random.random() < 0.4:  # 40% chance to attack
+                self.ai_state = 'attack'
+            else:  # 10% chance to dodge
+                self.ai_state = 'dodge'
 
     def jump(self):
         if not self.is_jumping:
@@ -147,52 +177,207 @@ class Character:
 
     def draw(self):
         if self.is_exploding:
-            # Draw explosion particles
-            for particle in self.explosion_particles:
-                glPushMatrix()
-                glTranslatef(*particle['position'])
-                
-                # Draw particle as a colored quad
-                glColor3f(*particle['color'])
-                size = particle['size']
-                glBegin(GL_QUADS)
-                glVertex3f(-size, -size, 0)
-                glVertex3f(size, -size, 0)
-                glVertex3f(size, size, 0)
-                glVertex3f(-size, size, 0)
-                glEnd()
-                
-                glPopMatrix()
-        else:
-            # Normal character drawing code
+            self.draw_explosion()
+            return
+            
+        glPushMatrix()
+        glTranslatef(*self.position)
+        glColor3f(*self.color)
+        
+        # Draw body
+        self.draw_torso()
+        
+        # Draw head with face and horns
+        self.draw_head()
+        
+        # Draw limbs
+        self.draw_arms()
+        self.draw_legs()
+        
+        glPopMatrix()
+
+    def draw_head(self):
+        glPushMatrix()
+        glTranslatef(0, 1.2, 0)
+        
+        # Head cube
+        glColor3f(*self.color)
+        self.draw_cube(0, 0, 0, 0.4)
+        
+        # Face features
+        glColor3f(0, 0, 0)  # Black for face features
+        
+        # Eyes
+        glBegin(GL_TRIANGLES)
+        # Left eye
+        glVertex3f(-0.1, 0.1, 0.21)
+        glVertex3f(-0.2, 0, 0.21)
+        glVertex3f(0, 0, 0.21)
+        # Right eye
+        glVertex3f(0.1, 0.1, 0.21)
+        glVertex3f(0.2, 0, 0.21)
+        glVertex3f(0, 0, 0.21)
+        glEnd()
+        
+        # Mouth
+        glBegin(GL_LINES)
+        glVertex3f(-0.1, -0.1, 0.21)
+        glVertex3f(0.1, -0.1, 0.21)
+        glEnd()
+        
+        # Horns
+        glColor3f(0.7, 0.7, 0.7)  # Gray horns
+        glBegin(GL_TRIANGLES)
+        # Left horn
+        glVertex3f(-0.2, 0.3, 0)
+        glVertex3f(-0.3, 0.5, 0)
+        glVertex3f(-0.1, 0.3, 0)
+        # Right horn
+        glVertex3f(0.2, 0.3, 0)
+        glVertex3f(0.3, 0.5, 0)
+        glVertex3f(0.1, 0.3, 0)
+        glEnd()
+        
+        glPopMatrix()
+
+    def draw_arms(self):
+        # Left arm
+        glPushMatrix()
+        glTranslatef(-0.6, 0.5, 0)
+        if self.is_punching and self.punch_frame < 10:
+            glRotatef(45 * self.punch_frame/10, 0, 0, 1)
+        self.draw_limb(0.2, 0.6)
+        glPopMatrix()
+        
+        # Right arm
+        glPushMatrix()
+        glTranslatef(0.6, 0.5, 0)
+        if self.is_punching and self.punch_frame < 10:
+            glRotatef(-45 * self.punch_frame/10, 0, 0, 1)
+        self.draw_limb(0.2, 0.6)
+        glPopMatrix()
+
+    def draw_legs(self):
+        # Left leg
+        glPushMatrix()
+        glTranslatef(-0.3, -1, 0)
+        if self.is_kicking and self.kick_frame < 10:
+            glRotatef(-60 * self.kick_frame/10, 0, 0, 1)
+        self.draw_limb(0.2, 0.8)
+        glPopMatrix()
+        
+        # Right leg
+        glPushMatrix()
+        glTranslatef(0.3, -1, 0)
+        if self.is_kicking and self.kick_frame < 10:
+            glRotatef(60 * self.kick_frame/10, 0, 0, 1)
+        self.draw_limb(0.2, 0.8)
+        glPopMatrix()
+
+    def punch(self):
+        if self.melee_cooldown <= 0:
+            self.is_punching = True
+            self.punch_frame = 0
+            self.melee_cooldown = 20
+            return True
+        return False
+
+    def kick(self):
+        if self.melee_cooldown <= 0:
+            self.is_kicking = True
+            self.kick_frame = 0
+            self.melee_cooldown = 30
+            return True
+        return False
+
+    def draw_torso(self):
+        # Draw the main body cube
+        glPushMatrix()
+        glTranslatef(0, 0, 0)
+        
+        # Main body
+        glColor3f(*self.color)
+        self.draw_cube(0, 0, 0, 0.8)  # Bigger cube for torso
+        
+        glPopMatrix()
+
+    def draw_limb(self, width, length):
+        # Draw a limb (arm or leg) as an elongated cube
+        glBegin(GL_QUADS)
+        # Front face
+        glVertex3f(-width/2, 0, width/2)
+        glVertex3f(width/2, 0, width/2)
+        glVertex3f(width/2, -length, width/2)
+        glVertex3f(-width/2, -length, width/2)
+        # Back face
+        glVertex3f(-width/2, 0, -width/2)
+        glVertex3f(width/2, 0, -width/2)
+        glVertex3f(width/2, -length, -width/2)
+        glVertex3f(-width/2, -length, -width/2)
+        # Left face
+        glVertex3f(-width/2, 0, -width/2)
+        glVertex3f(-width/2, 0, width/2)
+        glVertex3f(-width/2, -length, width/2)
+        glVertex3f(-width/2, -length, -width/2)
+        # Right face
+        glVertex3f(width/2, 0, -width/2)
+        glVertex3f(width/2, 0, width/2)
+        glVertex3f(width/2, -length, width/2)
+        glVertex3f(width/2, -length, -width/2)
+        glEnd()
+
+    def draw_cube(self, x, y, z, size=1.0):
+        # Helper function to draw a cube of given size
+        glPushMatrix()
+        glTranslatef(x, y, z)
+        glBegin(GL_QUADS)
+        # Front face
+        glVertex3f(-size/2, -size/2, size/2)
+        glVertex3f(size/2, -size/2, size/2)
+        glVertex3f(size/2, size/2, size/2)
+        glVertex3f(-size/2, size/2, size/2)
+        # Back face
+        glVertex3f(-size/2, -size/2, -size/2)
+        glVertex3f(-size/2, size/2, -size/2)
+        glVertex3f(size/2, size/2, -size/2)
+        glVertex3f(size/2, -size/2, -size/2)
+        # Top face
+        glVertex3f(-size/2, size/2, -size/2)
+        glVertex3f(-size/2, size/2, size/2)
+        glVertex3f(size/2, size/2, size/2)
+        glVertex3f(size/2, size/2, -size/2)
+        # Bottom face
+        glVertex3f(-size/2, -size/2, -size/2)
+        glVertex3f(size/2, -size/2, -size/2)
+        glVertex3f(size/2, -size/2, size/2)
+        glVertex3f(-size/2, -size/2, size/2)
+        # Right face
+        glVertex3f(size/2, -size/2, -size/2)
+        glVertex3f(size/2, size/2, -size/2)
+        glVertex3f(size/2, size/2, size/2)
+        glVertex3f(size/2, -size/2, size/2)
+        # Left face
+        glVertex3f(-size/2, -size/2, -size/2)
+        glVertex3f(-size/2, -size/2, size/2)
+        glVertex3f(-size/2, size/2, size/2)
+        glVertex3f(-size/2, size/2, -size/2)
+        glEnd()
+        glPopMatrix()
+
+    def draw_explosion(self):
+        # Draw explosion particles
+        for particle in self.explosion_particles:
             glPushMatrix()
-            glTranslatef(*self.position)
+            glTranslatef(*particle['position'])
             
-            # Set character color
-            glColor3f(*self.color)
-            
-            # Draw body (cube)
+            # Draw particle as a colored quad
+            glColor3f(*particle['color'])
+            size = particle['size']
             glBegin(GL_QUADS)
-            # Front face
-            glVertex3f(-0.5, -1, 0.5)
-            glVertex3f(0.5, -1, 0.5)
-            glVertex3f(0.5, 1, 0.5)
-            glVertex3f(-0.5, 1, 0.5)
-            # Back face
-            glVertex3f(-0.5, -1, -0.5)
-            glVertex3f(-0.5, 1, -0.5)
-            glVertex3f(0.5, 1, -0.5)
-            glVertex3f(0.5, -1, -0.5)
-            # Top face
-            glVertex3f(-0.5, 1, -0.5)
-            glVertex3f(-0.5, 1, 0.5)
-            glVertex3f(0.5, 1, 0.5)
-            glVertex3f(0.5, 1, -0.5)
-            # Bottom face
-            glVertex3f(-0.5, -1, -0.5)
-            glVertex3f(0.5, -1, -0.5)
-            glVertex3f(0.5, -1, 0.5)
-            glVertex3f(-0.5, -1, 0.5)
+            glVertex3f(-size, -size, 0)
+            glVertex3f(size, -size, 0)
+            glVertex3f(size, size, 0)
+            glVertex3f(-size, size, 0)
             glEnd()
             
             glPopMatrix()

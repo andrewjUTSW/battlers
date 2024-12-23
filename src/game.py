@@ -74,14 +74,22 @@ class FightingGame:
     def handle_events(self):
         keys = pygame.key.get_pressed()
         
-        # Player 1 controls with arrow keys
+        # Movement
         if keys[pygame.K_LEFT]:
-            self.player1.position[0] -= 0.1  # Updated to modify list directly
+            self.player1.position[0] -= 0.1
         if keys[pygame.K_RIGHT]:
             self.player1.position[0] += 0.1
         if keys[pygame.K_UP]:
             if self.player1.jump():
                 self.sound_manager.play('jump')
+        
+        # Combat controls
+        if keys[pygame.K_z]:  # Z for punch
+            if self.player1.punch():
+                self.sound_manager.play('punch')
+        if keys[pygame.K_x]:  # X for kick
+            if self.player1.kick():
+                self.sound_manager.play('kick')
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -98,37 +106,30 @@ class FightingGame:
         self.player1.update()
         self.player2.update()
         
-        # Update all active projectiles and check collisions for both characters
+        # Update all active projectiles and check collisions
         for projectile in self.all_projectiles:
             projectile.update()
             
-            # Check collision with player1 (if projectile is from villain)
-            if projectile in self.player2.projectiles:
-                if self.check_collision(projectile, self.player1):
-                    print(f"{self.player1.name} was hit by a projectile!")
-                    self.player1.strength -= 10
-                    projectile.active = False
-                    self.sound_manager.play('hit')
-                    
-                    if self.player1.strength <= 0:
-                        print(f"{self.player1.name} has been defeated!")
-                        self.player1.start_explosion()
-                        self.sound_manager.play('explosion')
-                        self.running = False
-
-            # Check collision with player2 (if projectile is from player1)
-            elif self.check_collision(projectile, self.player2):
-                print(f"{self.player2.name} was hit by a projectile!")
-                self.player2.strength -= 10
+            # Determine projectile owner and target
+            if projectile in self.player1.projectiles:
+                target = self.player2
+                shooter = self.player1
+            else:
+                target = self.player1
+                shooter = self.player2
+                
+            if self.check_collision(projectile, target):
+                print(f"{target.name} was hit by {shooter.name}'s projectile!")
+                target.strength -= 10
                 projectile.active = False
-                self.score += 10
                 self.sound_manager.play('hit')
                 
-                if self.player2.strength <= 0:
-                    print(f"{self.player2.name} has been defeated!")
-                    self.player2.start_explosion()
+                if target.strength <= 0:
+                    print(f"{target.name} has been defeated!")
+                    target.start_explosion()
                     self.sound_manager.play('explosion')
-                    self.score += 50
+                    if target == self.player2:
+                        self.score += 50
 
         # Add new projectiles from both players to the main list
         for projectile in self.player1.projectiles + self.player2.projectiles:
