@@ -232,35 +232,48 @@ class Character:
         # Face features
         glColor3f(0, 0, 0)  # Black for face features
         
-        # Eyes
+        # Eyes (make them more aggressive)
         glBegin(GL_TRIANGLES)
         # Left eye
         glVertex3f(-0.1, 0.1, 0.21)
-        glVertex3f(-0.2, 0, 0.21)
-        glVertex3f(0, 0, 0.21)
+        glVertex3f(-0.2, -0.05, 0.21)  # Angled down for mean look
+        glVertex3f(0, -0.05, 0.21)
         # Right eye
         glVertex3f(0.1, 0.1, 0.21)
-        glVertex3f(0.2, 0, 0.21)
-        glVertex3f(0, 0, 0.21)
+        glVertex3f(0.2, -0.05, 0.21)  # Angled down for mean look
+        glVertex3f(0, -0.05, 0.21)
         glEnd()
         
-        # Mouth
+        # Mouth (angry expression)
         glBegin(GL_LINES)
-        glVertex3f(-0.1, -0.1, 0.21)
-        glVertex3f(0.1, -0.1, 0.21)
+        glVertex3f(-0.15, -0.15, 0.21)
+        glVertex3f(0.15, -0.15, 0.21)
         glEnd()
         
-        # Horns
-        glColor3f(0.7, 0.7, 0.7)  # Gray horns
+        # Horns - now longer and more dramatic
+        glColor3f(0.6, 0.6, 0.6)  # Slightly darker gray for main horns
         glBegin(GL_TRIANGLES)
         # Left horn
-        glVertex3f(-0.2, 0.3, 0)
-        glVertex3f(-0.3, 0.5, 0)
-        glVertex3f(-0.1, 0.3, 0)
+        glVertex3f(-0.2, 0.3, 0)    # Base
+        glVertex3f(-0.4, 0.8, 0)    # Longer tip
+        glVertex3f(-0.1, 0.3, 0)    # Base
+        
         # Right horn
-        glVertex3f(0.2, 0.3, 0)
-        glVertex3f(0.3, 0.5, 0)
-        glVertex3f(0.1, 0.3, 0)
+        glVertex3f(0.2, 0.3, 0)     # Base
+        glVertex3f(0.4, 0.8, 0)     # Longer tip
+        glVertex3f(0.1, 0.3, 0)     # Base
+        
+        # Secondary horns (smaller ones)
+        glColor3f(0.7, 0.7, 0.7)    # Lighter gray for secondary horns
+        # Left secondary horn
+        glVertex3f(-0.15, 0.3, 0)
+        glVertex3f(-0.25, 0.6, 0.1) # Angled slightly forward
+        glVertex3f(-0.05, 0.3, 0)
+        
+        # Right secondary horn
+        glVertex3f(0.15, 0.3, 0)
+        glVertex3f(0.25, 0.6, 0.1)  # Angled slightly forward
+        glVertex3f(0.05, 0.3, 0)
         glEnd()
         
         glPopMatrix()

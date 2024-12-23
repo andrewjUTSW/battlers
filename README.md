@@ -53,11 +53,22 @@ python game.py
 ```
 
 ### Controls
-- **LEFT/RIGHT Arrow Keys**: Move Captain Destructor
+
+Player 1 (Blue):
+- **LEFT/RIGHT Arrow Keys**: Move
 - **UP Arrow**: Jump
-- **SPACE**: Shoot missiles
-- **Z**: Punch
-- **X**: Kick
+- **M**: Punch
+- **N**: Kick
+- **B**: Shoot
+
+Player 2 (Red):
+- **A/D**: Move left/right
+- **W**: Jump
+- **Q**: Punch
+- **E**: Kick
+- **R**: Shoot
+
+General:
 - **ESC**: Quit game
 
 ### Characters
