@@ -77,19 +77,14 @@ class FightingGame:
     def handle_events(self):
         keys = pygame.key.get_pressed()
         
-        # Player 1 controls (Arrow keys + M,N,B,V)
+        # Player 1 controls
         if keys[pygame.K_LEFT]:
-            self.player1.position[0] -= 0.1
+            self.player1.position[0] -= self.player1.move_speed
         if keys[pygame.K_RIGHT]:
-            self.player1.position[0] += 0.1
+            self.player1.position[0] += self.player1.move_speed
         if keys[pygame.K_UP]:
             if self.player1.jump():
                 self.sound_manager.play('jump')
-                jumps_remaining = self.player1.jumps_left
-                if jumps_remaining == 0:
-                    print("Double Jump!")
-                elif jumps_remaining == 1:
-                    print("First Jump!")
         if keys[pygame.K_m]:  # M for punch
             if self.player1.punch():
                 self.sound_manager.play('punch')
@@ -103,11 +98,11 @@ class FightingGame:
             if self.player1.breathe_fire():
                 self.sound_manager.play('fire')
 
-        # Player 2 controls (WASD + Q,E,R,F)
+        # Player 2 controls
         if keys[pygame.K_a]:
-            self.player2.position[0] -= 0.1
+            self.player2.position[0] -= self.player2.move_speed
         if keys[pygame.K_d]:
-            self.player2.position[0] += 0.1
+            self.player2.position[0] += self.player2.move_speed
         if keys[pygame.K_w]:
             if self.player2.jump():
                 self.sound_manager.play('jump')
@@ -195,36 +190,52 @@ class FightingGame:
         # Remove inactive projectiles
         self.all_projectiles = [p for p in self.all_projectiles if p.active]
 
-        # Check fire breath damage with improved effects
+        # Check fire breath damage
         if self.player1.is_breathing_fire:
             distance = abs(self.player1.position[0] - self.player2.position[0])
-            if distance < 3.0:  # Fire breath range
-                self.player2.strength -= 0.5  # Continuous damage per frame
-                self.score += 0.5
-                self.sound_manager.play('hit')
-                print(f"{self.player2.name} is being burned!")
+            # Only damage if player 1 is to the left of player 2 (facing right)
+            is_facing_right = self.player1.position[0] < self.player2.position[0]
+            if distance < 4.0 and is_facing_right:  # Fire breath range and correct direction
+                damage = 2.0
+                self.player2.strength -= damage
+                self.score += damage
                 
-                # Check if defeated by fire
+                if pygame.time.get_ticks() % 10 == 0:
+                    self.sound_manager.play('hit')
+                    print(f"{self.player2.name} is burning! Health: {self.player2.strength}")
+                
                 if self.player2.strength <= 0:
                     print(f"{self.player2.name} was incinerated!")
                     self.player2.start_explosion()
                     self.sound_manager.play('explosion')
                     self.score += 50
                     self.player2.strength = 0
-        
+
+        # Same for player 2's fire breath
         if self.player2.is_breathing_fire:
             distance = abs(self.player1.position[0] - self.player2.position[0])
-            if distance < 3.0:  # Fire breath range
-                self.player1.strength -= 0.5  # Continuous damage per frame
-                self.sound_manager.play('hit')
-                print(f"{self.player1.name} is being burned!")
+            # Only damage if player 2 is to the right of player 1 (facing left)
+            is_facing_left = self.player2.position[0] > self.player1.position[0]
+            if distance < 4.0 and is_facing_left:
+                damage = 2.0
+                self.player1.strength -= damage
                 
-                # Check if defeated by fire
+                if pygame.time.get_ticks() % 10 == 0:
+                    self.sound_manager.play('hit')
+                    print(f"{self.player1.name} is burning! Health: {self.player1.strength}")
+                
                 if self.player1.strength <= 0:
                     print(f"{self.player1.name} was incinerated!")
                     self.player1.start_explosion()
                     self.sound_manager.play('explosion')
                     self.player1.strength = 0
+
+        # Update eye fire effects
+        for player in [self.player1, self.player2]:
+            if player.is_eyes_on_fire:
+                player.eyes_fire_duration += 1
+                if player.eyes_fire_duration >= player.eyes_fire_max:
+                    player.is_eyes_on_fire = False
 
     def draw_score(self):
         glPushMatrix()
@@ -389,31 +400,20 @@ class FightingGame:
         glPopMatrix()
 
     def check_melee_combat(self):
-        # Don't check melee combat if either character is defeated
         if self.player1.strength <= 0 or self.player2.strength <= 0:
             return
 
-        # Check if characters are in melee range
         distance = abs(self.player1.position[0] - self.player2.position[0])
         
-        # Check player1's melee attacks
         if distance < self.melee_range:
+            # Calculate damage based on velocity and position
             if self.player1.is_punching and self.player1.punch_frame == 5:
-                self.player2.strength -= 5
+                impact = abs(self.player1.velocity.x) * 20
+                damage = min(max(5, impact), 15)  # Between 5 and 15 damage
+                self.player2.strength -= damage
+                # Add knockback
+                self.player2.velocity.x += self.player1.velocity.x * 1.5
+                self.player2.velocity.y += 0.1
                 self.sound_manager.play('hit')
-                print(f"{self.player2.name} was punched!")
-                self.score += 5
-            
-            if self.player1.is_kicking and self.player1.kick_frame == 5:
-                self.player2.strength -= 8
-                self.sound_manager.play('hit')
-                print(f"{self.player2.name} was kicked!")
-                self.score += 8
-
-            # Check if villain is defeated
-            if self.player2.strength <= 0:
-                print(f"{self.player2.name} has been defeated!")
-                self.player2.start_explosion()
-                self.sound_manager.play('explosion')
-                self.score += 50
-                self.player2.strength = 0  # Ensure health doesn't go negative
+                print(f"{self.player2.name} was hit for {damage:.1f} damage!")
+                self.score += damage

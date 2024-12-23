@@ -14,11 +14,17 @@ class Character:
         
         # Jumping properties
         self.velocity = Vector3(0, 0, 0)
+        self.acceleration = Vector3(0, 0, 0)
+        self.mass = 1.0
+        self.friction = 0.9
+        self.jump_speed = 0.4
+        self.gravity = 0.02
+        self.move_speed = 0.15
+        self.air_resistance = 0.98
         self.is_jumping = False
-        self.jump_speed = 0.3
-        self.gravity = 0.015
-        self.jumps_left = 2  # Track available jumps
-        self.max_jumps = 2   # Maximum number of jumps
+        self.jump_cooldown = 0
+        self.jump_cooldown_max = 10
+        self.can_double_jump = True  # New flag for double jump
         
         # Explosion properties
         self.is_exploding = False
@@ -30,7 +36,6 @@ class Character:
         self.ai_state = 'idle'
         self.ai_timer = 0
         self.ai_move_direction = 1
-        self.move_speed = 0.1
         self.attack_cooldown = 0
         self.attack_cooldown_max = 60  # frames (1 second at 60 FPS)
 
@@ -47,11 +52,24 @@ class Character:
         # Fire breath properties
         self.is_breathing_fire = False
         self.fire_breath_duration = 0
-        self.fire_breath_max = 30  # Half second at 60 FPS
+        self.fire_breath_max = 120  # 2 seconds at 60 FPS
         self.fire_breath_particles = []
-        self.fire_breath_damage = 1  # Damage per frame
+        self.fire_breath_damage = 1
         self.fire_breath_cooldown = 0
-        self.fire_breath_cooldown_max = 120  # 2 second cooldown
+        self.fire_breath_cooldown_max = 30  # Shorter cooldown (0.5 seconds)
+        self.fire_breath_range = 4.0
+
+        self.is_eyes_on_fire = False
+        self.eyes_fire_duration = 0
+        self.eyes_fire_max = 60  # 1 second of fire eyes
+
+        self.is_staggered = False
+        self.stagger_time = 0
+        self.stagger_recovery = 30  # Frames to recover from stagger
+
+        self.combo_count = 0
+        self.last_hit_time = 0
+        self.combo_window = 45  # Frames to continue combo
 
     def start_explosion(self):
         self.is_exploding = True
@@ -90,6 +108,14 @@ class Character:
             self.update_explosion()
             return
 
+        # Update stagger state
+        if self.is_staggered:
+            self.stagger_time += 1
+            if self.stagger_time >= self.stagger_recovery:
+                self.is_staggered = False
+                self.stagger_time = 0
+            return  # Can't act while staggered
+
         # Update combat cooldowns
         if self.melee_cooldown > 0:
             self.melee_cooldown -= 1
@@ -110,15 +136,31 @@ class Character:
                 self.is_kicking = False
                 self.kick_frame = 0
 
-        # Apply gravity and update vertical position
+        # Update jump cooldown
+        if self.jump_cooldown > 0:
+            self.jump_cooldown -= 1
+
+        # Apply physics
+        self.velocity.x *= self.friction
+        self.velocity.y *= self.air_resistance
+        self.velocity += self.acceleration
         self.velocity.y -= self.gravity
-        self.position[1] = max(self.position[1] + self.velocity.y, 0)
+
+        # Update position with physics
+        self.position[0] += self.velocity.x
+        new_y = max(self.position[1] + self.velocity.y, 0)
         
         # Check if landed
-        if self.position[1] == 0 and self.velocity.y <= 0:
+        if new_y == 0 and self.velocity.y < 0:
             self.velocity.y = 0
             self.is_jumping = False
-            self.jumps_left = self.max_jumps  # Reset jumps when landing
+            self.can_double_jump = True  # Reset double jump when landing
+        
+        self.position[1] = new_y
+        self.position[2] += self.velocity.z
+
+        # Reset acceleration
+        self.acceleration = Vector3(0, 0, 0)
 
         # Update AI behavior if this is an AI character
         if self.is_ai:
@@ -135,12 +177,13 @@ class Character:
         if self.is_breathing_fire:
             self.fire_breath_duration += 1
             if self.fire_breath_duration >= self.fire_breath_max:
-                self.is_breathing_fire = False
-                self.fire_breath_duration = 0
-                self.fire_breath_cooldown = self.fire_breath_cooldown_max
-            
-            # Update fire particles
-            self.update_fire_breath()
+                self.stop_fire_breath()
+            else:
+                self.update_fire_breath()
+
+        # Update combo
+        if pygame.time.get_ticks() - self.last_hit_time > self.combo_window:
+            self.combo_count = 0
 
     def update_ai(self):
         self.ai_timer += 1
@@ -203,13 +246,25 @@ class Character:
                 self.ai_state = 'dodge'
 
     def jump(self):
-        # Allow jump if we have jumps left
-        if self.jumps_left > 0:
+        # First jump from ground
+        if not self.is_jumping and self.jump_cooldown <= 0:
             self.velocity.y = self.jump_speed
-            if self.jumps_left == 1:  # Second jump
-                self.velocity.y *= 0.8  # Slightly lower second jump
             self.is_jumping = True
-            self.jumps_left -= 1
+            self.can_double_jump = True  # Reset double jump availability
+            self.jump_cooldown = self.jump_cooldown_max
+            print("First Jump!")
+            return True
+        # Double jump in air
+        elif self.is_jumping and self.can_double_jump and self.jump_cooldown <= 0:
+            self.velocity.y = self.jump_speed * 1.5  # Higher double jump
+            self.can_double_jump = False  # Use up double jump
+            self.jump_cooldown = self.jump_cooldown_max
+            
+            # Add horizontal boost for double jumps
+            direction = 1.0 if self.position[0] < 0 else -1.0
+            self.velocity.x += direction * 0.3
+            
+            print("Double Jump!")
             return True
         return False
 
@@ -260,10 +315,9 @@ class Character:
         glPushMatrix()
         glTranslatef(0, 1.2, 0)
         
-        # Skull base (blend with character color)
-        skull_color = [0.8 + c * 0.2 for c in self.color]  # Blend white with character color
-        glColor3f(*skull_color)
-        self.draw_cube(0, 0, 0, 0.45)
+        # Skull base
+        glColor3f(0.95, 0.95, 0.95)  # Bone white
+        self.draw_cube(0, 0, 0, 0.45)  # Slightly larger skull
         
         # Skull features
         glColor3f(0.1, 0.1, 0.1)  # Darker black for depth
@@ -579,6 +633,9 @@ class Character:
             self.is_punching = True
             self.punch_frame = 0
             self.melee_cooldown = 20
+            # Add forward momentum to punch
+            direction = 1.0 if self.position[0] < 0 else -1.0
+            self.velocity.x += direction * 0.1
             return True
         return False
 
@@ -587,6 +644,10 @@ class Character:
             self.is_kicking = True
             self.kick_frame = 0
             self.melee_cooldown = 30
+            # Add upward and forward momentum to kick
+            direction = 1.0 if self.position[0] < 0 else -1.0
+            self.velocity.x += direction * 0.15
+            self.velocity.y += 0.1
             return True
         return False
 
@@ -773,28 +834,41 @@ class Character:
         if not self.is_breathing_fire and self.fire_breath_cooldown <= 0:
             self.is_breathing_fire = True
             self.fire_breath_duration = 0
+            self.fire_breath_particles = []
             return True
         return False
 
+    def stop_fire_breath(self):
+        self.is_breathing_fire = False
+        self.fire_breath_duration = 0
+        self.fire_breath_cooldown = self.fire_breath_cooldown_max
+        self.fire_breath_particles = []
+
     def update_fire_breath(self):
-        # Add new particles
+        # Add new particles with character's color
         direction = 1.0 if self.position[0] < 0 else -1.0
-        for _ in range(3):  # Add 3 new particles per frame
-            spread = np.random.uniform(-0.2, 0.2)
-            speed = np.random.uniform(0.3, 0.5)
+        for _ in range(5):
+            spread = np.random.uniform(-0.3, 0.3)
+            speed = np.random.uniform(0.4, 0.6)
+            
+            # Create color gradient from character color to white
+            base_color = self.color
+            random_intensity = np.random.uniform(0.5, 1.0)
+            particle_color = [
+                min(1.0, c + (1.0 - c) * random_intensity)
+                for c in base_color
+            ]
+            
             self.fire_breath_particles.append({
                 'position': [
-                    self.position[0] + direction * 0.5,  # Start from mouth
-                    self.position[1] + 1.2,  # Head height
+                    self.position[0] + direction * 0.5,
+                    self.position[1] + 1.2,
                     self.position[2]
                 ],
-                'velocity': [
-                    direction * speed,
-                    spread * 0.2,
-                    spread
-                ],
-                'size': np.random.uniform(0.1, 0.3),
-                'life': 20  # Particle lifetime in frames
+                'velocity': [direction * speed, spread * 0.2, spread],
+                'size': np.random.uniform(0.2, 0.4),
+                'life': 30,
+                'color': particle_color
             })
 
         # Update existing particles
@@ -803,7 +877,7 @@ class Character:
             particle['position'][1] += particle['velocity'][1]
             particle['position'][2] += particle['velocity'][2]
             particle['life'] -= 1
-            particle['size'] *= 0.95
+            particle['size'] *= 0.98  # Slower shrinking
 
         # Remove dead particles
         self.fire_breath_particles = [p for p in self.fire_breath_particles if p['life'] > 0]
@@ -811,16 +885,18 @@ class Character:
     def draw_fire_breath(self):
         for particle in self.fire_breath_particles:
             glPushMatrix()
-            
-            # Move to particle position
             pos = particle['position']
             glTranslatef(pos[0] - self.position[0], pos[1] - self.position[1], pos[2] - self.position[2])
             
-            # Calculate color based on particle life
-            life_ratio = particle['life'] / 20.0
-            glColor3f(1.0, life_ratio * 0.7, life_ratio * 0.2)  # Red to orange gradient
+            # Use particle's stored color
+            life_ratio = particle['life'] / 30.0
+            base_color = particle['color']
+            glColor3f(
+                base_color[0] * life_ratio,
+                base_color[1] * life_ratio,
+                base_color[2] * life_ratio
+            )
             
-            # Draw particle as billboard quad
             size = particle['size']
             glBegin(GL_TRIANGLES)
             glVertex3f(-size, -size, 0)
@@ -829,6 +905,33 @@ class Character:
             glEnd()
             
             glPopMatrix()
+
+    def draw_fire_eyes(self):
+        # Base colors using character's color
+        eye_colors = [
+            self.color,  # Base color
+            (min(1.0, self.color[0] + 0.3), min(1.0, self.color[1] + 0.3), min(1.0, self.color[2] + 0.3)),  # Lighter
+            (1.0, 1.0, 1.0)  # White core
+        ]
+        
+        time = pygame.time.get_ticks() / 100.0
+        
+        # Draw fire for each eye
+        for x_offset in [-0.1, 0.1]:  # Left and right eye positions
+            for i, color in enumerate(eye_colors):
+                glColor3f(*color)
+                glBegin(GL_TRIANGLES)
+                
+                # Multiple flame tongues
+                for j in range(4):
+                    wave = 0.02 * np.sin(time + j * 2)
+                    height = 0.08 - i * 0.02
+                    width = 0.05 - i * 0.01
+                    
+                    glVertex3f(x_offset - width + wave, 0.05, 0.22)
+                    glVertex3f(x_offset + width + wave, 0.05, 0.22)
+                    glVertex3f(x_offset + wave, 0.05 + height, 0.22)
+                glEnd()
 
 class Projectile:
     def __init__(self, position, direction, speed=0.1):
